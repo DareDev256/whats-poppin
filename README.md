@@ -26,7 +26,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 npm test
 ```
 
-34 unit tests covering power-up analysis, area-of-effect calculations, scoring formula, shape detection, and game constant integrity. Uses Vitest.
+62 unit tests covering match-finding algorithm, grid gravity/drop simulation, adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations, scoring formula, shape detection, and game constant integrity. Uses Vitest.
 
 ## Tech Stack
 

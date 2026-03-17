@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2] — 2026-03-17
+
+### Added
+- 28 new tests covering untested critical paths: match-finding algorithm (horizontal, vertical, L-shaped grouping, null gaps, long runs), adjacency validation (horizontal, vertical, diagonal, same-cell, distance-2), grid swap primitive (data consistency, double-swap idempotency, null handling), streak tier resolution (all thresholds and between-tier behavior), adlib tier selection (tier boundaries and edge case), and gravity/drop simulation (gap filling, multi-drop stacking, full-column no-op)
+- Total test count: 62 (up from 34)
+
 ## [0.2.1] — 2026-03-17
 
 ### Added
