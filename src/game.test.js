@@ -644,4 +644,203 @@ describe('dropBubbles (gravity)', () => {
       }
     }
   });
+  it('handles alternating null gaps (swiss cheese column)', () => {
+    const grid = makeGrid(GRID_ROWS, GRID_COLS);
+    // Punch holes at rows 1, 3, 5, 7 in col 0
+    grid[1][0] = null; grid[3][0] = null; grid[5][0] = null; grid[7][0] = null;
+    dropBubbles(grid);
+    // Bottom 6 rows filled, top 4 null
+    for (let r = GRID_ROWS - 1; r >= 4; r--) expect(grid[r][0]).not.toBeNull();
+    for (let r = 0; r < 4; r++) expect(grid[r][0]).toBeNull();
+  });
+  it('handles completely empty column', () => {
+    const grid = makeGrid(GRID_ROWS, GRID_COLS);
+    for (let r = 0; r < GRID_ROWS; r++) grid[r][2] = null;
+    dropBubbles(grid);
+    for (let r = 0; r < GRID_ROWS; r++) expect(grid[r][2]).toBeNull();
+  });
+  it('preserves row data after multi-gap drop', () => {
+    const grid = makeGrid(GRID_ROWS, GRID_COLS);
+    grid[8][4] = null; grid[9][4] = null;
+    const survivor = grid[7][4];
+    dropBubbles(grid);
+    expect(grid[9][4]).toBe(survivor);
+    expect(survivor.getData('row')).toBe(9);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// DEADLOCK DETECTION (hasPossibleMoves — extracted logic)
+// ══════════════════════════════════════════════════════════════
+function hasPossibleMoves(grid) {
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (c + 1 < GRID_COLS) {
+        swapGridData(grid, r, c, r, c + 1);
+        if (findAllMatches(grid).length > 0) { swapGridData(grid, r, c, r, c + 1); return true; }
+        swapGridData(grid, r, c, r, c + 1);
+      }
+      if (r + 1 < GRID_ROWS) {
+        swapGridData(grid, r, c, r + 1, c);
+        if (findAllMatches(grid).length > 0) { swapGridData(grid, r, c, r + 1, c); return true; }
+        swapGridData(grid, r, c, r + 1, c);
+      }
+    }
+  }
+  return false;
+}
+
+describe('hasPossibleMoves (deadlock detection)', () => {
+  it('detects valid moves on a board with an obvious match', () => {
+    // Place: color 1 at (0,0), color 2 at (0,1), color 1 at (0,2), color 1 at (0,3)
+    // Swapping (0,0)<->(0,1) yields 3-match of color 2? No — swapping (0,1)<->(0,2) gives 1,1,1
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    // Set up: swapping col 1 and col 2 creates a 3-match of color 1
+    colors[0][0] = 1; colors[0][1] = 2; colors[0][2] = 1; colors[0][3] = 1;
+    const grid = makeColorGrid(colors);
+    expect(hasPossibleMoves(grid)).toBe(true);
+  });
+
+  it('detects deadlock when only isolated bubbles remain', () => {
+    // Two lone bubbles far apart — no swap can create 3-in-a-row
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    colors[0][0] = 1; colors[9][7] = 2;
+    const grid = makeColorGrid(colors);
+    expect(hasPossibleMoves(grid)).toBe(false);
+  });
+
+  it('detects vertical swap creating a match', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    // col 3: rows 0,1 = color 5, row 2 = color 3, row 3 = color 5
+    // Swapping row 2 and row 3 gives 5,5,5 in col 3
+    colors[0][3] = 5; colors[1][3] = 5; colors[2][3] = 3; colors[3][3] = 5;
+    const grid = makeColorGrid(colors);
+    expect(hasPossibleMoves(grid)).toBe(true);
+  });
+
+  it('restores grid state after checking (no side effects)', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) colors[r][c] = (r + c) % 2;
+    const grid = makeColorGrid(colors);
+    // Snapshot color state
+    const snapshot = grid.map(row => row.map(b => b?.getData('colorIdx') ?? null));
+    hasPossibleMoves(grid);
+    // Grid should be identical after check
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        expect(grid[r][c]?.getData('colorIdx') ?? null).toBe(snapshot[r][c]);
+      }
+    }
+  });
+
+  it('handles grid with null cells (post-pop state)', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    // Sparse board — only a few bubbles
+    colors[8][0] = 1; colors[8][1] = 2; colors[8][2] = 1; colors[9][0] = 1;
+    const grid = makeColorGrid(colors);
+    // No crash, returns boolean
+    expect(typeof hasPossibleMoves(grid)).toBe('boolean');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// CROSS-SHAPED & EDGE-CASE MATCHES
+// ══════════════════════════════════════════════════════════════
+describe('findAllMatches — advanced patterns', () => {
+  it('cross/plus pattern merges into one group', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    // Horizontal: row 2, cols 2-4; Vertical: rows 1-3, col 3
+    colors[2][2] = 1; colors[2][3] = 1; colors[2][4] = 1;
+    colors[1][3] = 1; colors[3][3] = 1;
+    const grid = makeColorGrid(colors);
+    const groups = findAllMatches(grid);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(5);
+  });
+
+  it('two parallel matches in adjacent rows stay separate', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    colors[0][0] = 2; colors[0][1] = 2; colors[0][2] = 2;
+    colors[1][0] = 3; colors[1][1] = 3; colors[1][2] = 3;
+    const grid = makeColorGrid(colors);
+    const groups = findAllMatches(grid);
+    expect(groups).toHaveLength(2);
+  });
+
+  it('match at grid boundary (bottom-right corner)', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    colors[9][5] = 4; colors[9][6] = 4; colors[9][7] = 4;
+    const grid = makeColorGrid(colors);
+    const groups = findAllMatches(grid);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(3);
+  });
+
+  it('full board of one color returns one massive group', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(0));
+    const grid = makeColorGrid(colors);
+    const groups = findAllMatches(grid);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(GRID_ROWS * GRID_COLS);
+  });
+
+  it('exactly 2 in a row is not a match', () => {
+    const colors = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    colors[5][0] = 3; colors[5][1] = 3;
+    const grid = makeColorGrid(colors);
+    expect(findAllMatches(grid)).toHaveLength(0);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// BOMB EDGE POSITIONS (middle edges, not just corners)
+// ══════════════════════════════════════════════════════════════
+describe('PowerUpSystem.getAffectedCells — edge positions', () => {
+  const ROWS = 10, COLS = 8;
+
+  it('BOMB on top edge (not corner) clips to 6 cells', () => {
+    const grid = makeGrid(ROWS, COLS);
+    const cells = PowerUpSystem.getAffectedCells(POWERUP_TYPES.BOMB, 0, 4, 0, grid, ROWS, COLS);
+    expect(cells).toHaveLength(6); // 2 rows × 3 cols
+    cells.forEach(c => expect(c.r).toBeGreaterThanOrEqual(0));
+  });
+
+  it('BOMB on left edge (not corner) clips to 6 cells', () => {
+    const grid = makeGrid(ROWS, COLS);
+    const cells = PowerUpSystem.getAffectedCells(POWERUP_TYPES.BOMB, 5, 0, 0, grid, ROWS, COLS);
+    expect(cells).toHaveLength(6); // 3 rows × 2 cols
+    cells.forEach(c => expect(c.c).toBeGreaterThanOrEqual(0));
+  });
+
+  it('LINE_H skips null cells in sparse row', () => {
+    const grid = makeGrid(ROWS, COLS);
+    grid[3][0] = null; grid[3][4] = null; grid[3][7] = null;
+    const cells = PowerUpSystem.getAffectedCells(POWERUP_TYPES.LINE_H, 3, 2, 0, grid, ROWS, COLS);
+    expect(cells).toHaveLength(COLS - 3);
+  });
+
+  it('LINE_V skips null cells in sparse column', () => {
+    const grid = makeGrid(ROWS, COLS);
+    grid[0][5] = null; grid[9][5] = null;
+    const cells = PowerUpSystem.getAffectedCells(POWERUP_TYPES.LINE_V, 5, 5, 0, grid, ROWS, COLS);
+    expect(cells).toHaveLength(ROWS - 2);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// SCORING BOUNDARY CONDITIONS
+// ══════════════════════════════════════════════════════════════
+describe('Score calculation — boundaries', () => {
+  it('single pop at streak 0 is zero (multiplier floors at 0)', () => {
+    expect(calculateScore(1, 0)).toBe(0);
+  });
+
+  it('massive combo: 20 pops + streak 10 + 3 powerups', () => {
+    // (20*10 + (20-4)*15 + 3*50) * 10 = (200+240+150)*10 = 5900
+    expect(calculateScore(20, 10, 3)).toBe(5900);
+  });
+
+  it('streak 1 gives 1x, not 0x', () => {
+    expect(calculateScore(3, 1)).toBeGreaterThan(0);
+  });
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.3] — 2026-03-17
+
+### Added
+- 20 new tests for critical untested paths: deadlock detection (`hasPossibleMoves`), advanced match patterns (cross-shaped, parallel, boundary, full-board, sub-minimum), gravity edge cases (alternating gaps, empty columns, multi-gap row data), BOMB/LINE edge positions (middle-edge clipping, sparse rows/columns), and scoring boundary conditions
+- Total test count: 82 (up from 62)
+
 ## [0.2.2] — 2026-03-17
 
 ### Added
