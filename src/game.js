@@ -190,10 +190,10 @@ class TitleScene extends Phaser.Scene {
     }
 
     // High score display
-    const highScore = localStorage.getItem('whatspoppin_highscore') || 0;
+    const highScore = parseInt(localStorage.getItem('whatspoppin_highscore') || '0', 10) || 0;
     if (highScore > 0) {
       Icons.star(this, width / 2 - 100, height * 0.85, 14, 0xf1c40f);
-      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${Number(highScore).toLocaleString()}`, {
+      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${Math.max(0, highScore).toLocaleString()}`, {
         fontSize: '18px',
         fontFamily: '"Segoe UI", system-ui, sans-serif',
         fontStyle: 'bold',
@@ -1174,10 +1174,10 @@ class GameScene extends Phaser.Scene {
     // Play final sound
     window.audioEngine.playStreakHit(12);
 
-    const highScore = parseInt(localStorage.getItem('whatspoppin_highscore') || '0');
+    const highScore = parseInt(localStorage.getItem('whatspoppin_highscore') || '0', 10) || 0;
     const isNewHigh = this.score > highScore;
     if (isNewHigh) {
-      localStorage.setItem('whatspoppin_highscore', this.score.toString());
+      localStorage.setItem('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
     }
 
     // Transition

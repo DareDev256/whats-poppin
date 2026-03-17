@@ -1,5 +1,5 @@
 // Service Worker for offline play
-const CACHE_NAME = 'whatspoppin-v1';
+const CACHE_NAME = 'whatspoppin-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,7 +8,7 @@ const ASSETS = [
   '/src/icons.js',
   '/src/powerups.js',
   '/src/characters.js',
-  '/node_modules/phaser/dist/phaser.min.js',
+  'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js',
 ];
 
 self.addEventListener('install', (event) => {

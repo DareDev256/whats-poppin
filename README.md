@@ -13,12 +13,19 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
 
+## Security
+
+- **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
+- **CSP** — Content-Security-Policy restricts script sources, prevents injection
+- **Input hardening** — localStorage reads validated with radix + NaN guards
+- **Offline cache** — Service worker caches actual CDN URLs (not broken local paths)
+
 ## Tech Stack
 
-- **Phaser 3** — Game engine
+- **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
 - **Vanilla JS** — No build step, no framework
-- **CDN** — Phaser loaded from jsDelivr
+- **CDN** — Phaser loaded from jsDelivr with integrity verification
 
 ## Run Locally
 
