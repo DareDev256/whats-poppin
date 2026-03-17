@@ -20,12 +20,21 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Input hardening** — localStorage reads validated with radix + NaN guards
 - **Offline cache** — Service worker caches actual CDN URLs (not broken local paths)
 
+## Tests
+
+```bash
+npm test
+```
+
+34 unit tests covering power-up analysis, area-of-effect calculations, scoring formula, shape detection, and game constant integrity. Uses Vitest.
+
 ## Tech Stack
 
 - **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
 - **Vanilla JS** — No build step, no framework
 - **CDN** — Phaser loaded from jsDelivr with integrity verification
+- **Vitest** — Unit testing (dev dependency)
 
 ## Run Locally
 

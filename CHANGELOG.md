@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] — 2026-03-17
+
+### Added
+- 34 unit tests with Vitest covering critical game logic: power-up analysis, L/T shape detection, area-of-effect cell calculations, scoring formula, edge cases (grid corners, null cells, unknown types), and game constant integrity
+- `npm test` now runs the test suite (was previously a no-op)
+
 ## [0.2.0] — 2026-03-17
 
 ### Security
