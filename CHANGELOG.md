@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1] — 2026-03-18
+
+### Security
+- Fixed CSP gap in service worker: offline fallback responses now carry full `Content-Security-Policy` and `X-Content-Type-Options: nosniff` headers — previously had zero CSP protection
+- Added missing CSP directives `base-uri 'self'`, `form-action 'self'`, and `frame-ancestors 'none'` to both `index.html` meta tag and SW synthesized responses — closes base-tag injection, form hijack, and clickjacking vectors
+- Bumped service worker cache to `whatspoppin-v4` to invalidate stale caches
+- Offline fallback page now renders a styled, branded page instead of raw unstyled HTML
+
 ## [0.3.0] — 2026-03-18
 
 ### Security

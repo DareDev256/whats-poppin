@@ -1,5 +1,21 @@
 // Service Worker for offline play
-const CACHE_NAME = 'whatspoppin-v3';
+const CACHE_NAME = 'whatspoppin-v4';
+
+// Canonical CSP — applied to all synthesized responses
+const CSP_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "font-src 'self'",
+  "media-src 'self' blob:",
+  "worker-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 const ASSETS = [
   '/',
   '/index.html',
@@ -34,13 +50,27 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        // Network failure with no cache — return a minimal offline response
+        // Network failure with no cache — return a CSP-protected offline response
         if (event.request.destination === 'document') {
-          return new Response('<h1>Offline</h1><p>Reload when connected.</p>', {
-            headers: { 'Content-Type': 'text/html' },
-          });
+          return new Response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<title>Offline — What\'s Poppin</title>' +
+            '<style>body{background:#0a0a0f;color:#e0e0e0;font-family:system-ui,sans-serif;' +
+            'display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;' +
+            'text-align:center}h1{font-size:1.5rem;margin-bottom:.5rem}p{opacity:.6;font-size:.9rem}</style>' +
+            '</head><body><div><h1>You\'re Offline</h1>' +
+            '<p>Reconnect and reload to keep poppin\'.</p></div></body></html>',
+            {
+              headers: {
+                'Content-Type': 'text/html; charset=UTF-8',
+                'Content-Security-Policy': CSP_POLICY,
+                'X-Content-Type-Options': 'nosniff',
+              },
+            }
+          );
         }
-        return new Response('', { status: 503 });
+        return new Response('', { status: 503, headers: { 'X-Content-Type-Options': 'nosniff' } });
       });
     })
   );
