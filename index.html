@@ -8,7 +8,9 @@
   <meta name="theme-color" content="#0a0a1a">
   <link rel="manifest" href="manifest.json">
   <title>What's Poppin</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; media-src 'self' blob:; worker-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; media-src 'self' blob:; worker-src 'self'">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  <meta name="referrer" content="no-referrer">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -40,15 +42,11 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"
           integrity="sha384-AvQiDMZAVLda3VtAoU5MCfBz8pzXhteb2CiUJeKBmPlWzpXj1uJ96Km11+YuFNu/"
           crossorigin="anonymous"></script>
+  <script src="src/init.js"></script>
   <script src="src/audio.js"></script>
   <script src="src/icons.js"></script>
   <script src="src/powerups.js"></script>
   <script src="src/characters.js"></script>
   <script src="src/game.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-  </script>
 </body>
 </html>

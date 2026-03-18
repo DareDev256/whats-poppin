@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] — 2026-03-18
+
+### Security
+- Removed `'unsafe-inline'` from CSP `script-src` — inline scripts extracted to `src/init.js`, closing primary XSS vector
+- Added `Permissions-Policy` header disabling camera, microphone, geolocation, payment, USB, and sensor APIs
+- Added `Referrer-Policy: no-referrer` to prevent information leakage to third-party CDN
+- Wrapped all localStorage operations in `SafeStorage` with try-catch — prevents crashes in private browsing or when storage is disabled/full
+- Added FNV-1a checksum validation on stored values (high score, played flag) — detects casual localStorage tampering
+- Hardened service worker fetch: validates response origins before caching, returns graceful offline fallback on network failure instead of unhandled rejection
+- Bumped service worker cache to `whatspoppin-v3` to invalidate stale caches
+- Scoped service worker registration to `'/'`
+
 ## [0.2.3] — 2026-03-17
 
 ### Added

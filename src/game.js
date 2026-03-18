@@ -183,17 +183,17 @@ class TitleScene extends Phaser.Scene {
     }, (scene, bx, by) => Icons.help(scene, bx, by, 18, 0xffffff));
 
     // First-time tutorial check
-    if (!localStorage.getItem('whatspoppin_played')) {
+    if (!SafeStorage.get('whatspoppin_played', null)) {
       this.createButton(width / 2, btnY + 240, 'TUTORIAL', 'Learn the basics step by step', () => {
         this.scene.start('TutorialScene');
       }, null);
     }
 
     // High score display
-    const highScore = parseInt(localStorage.getItem('whatspoppin_highscore') || '0', 10) || 0;
+    const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
     if (highScore > 0) {
       Icons.star(this, width / 2 - 100, height * 0.85, 14, 0xf1c40f);
-      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${Math.max(0, highScore).toLocaleString()}`, {
+      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`, {
         fontSize: '18px',
         fontFamily: '"Segoe UI", system-ui, sans-serif',
         fontStyle: 'bold',
@@ -629,7 +629,7 @@ class TutorialScene extends Phaser.Scene {
     nextHit.on('pointerdown', () => {
       this.stepIndex++;
       if (this.stepIndex >= steps.length) {
-        localStorage.setItem('whatspoppin_played', '1');
+        SafeStorage.set('whatspoppin_played', '1');
         this.scene.start('TitleScene');
         return;
       }
@@ -643,7 +643,7 @@ class TutorialScene extends Phaser.Scene {
       color: '#555555',
     }).setOrigin(1, 0).setInteractive();
     skip.on('pointerdown', () => {
-      localStorage.setItem('whatspoppin_played', '1');
+      SafeStorage.set('whatspoppin_played', '1');
       this.scene.start('TitleScene');
     });
   }
@@ -1174,10 +1174,10 @@ class GameScene extends Phaser.Scene {
     // Play final sound
     window.audioEngine.playStreakHit(12);
 
-    const highScore = parseInt(localStorage.getItem('whatspoppin_highscore') || '0', 10) || 0;
+    const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
     const isNewHigh = this.score > highScore;
     if (isNewHigh) {
-      localStorage.setItem('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
+      SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
     }
 
     // Transition

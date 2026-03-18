@@ -16,9 +16,12 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ## Security
 
 - **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
-- **CSP** — Content-Security-Policy restricts script sources, prevents injection
-- **Input hardening** — localStorage reads validated with radix + NaN guards
-- **Offline cache** — Service worker caches actual CDN URLs (not broken local paths)
+- **CSP** — Content-Security-Policy with no `unsafe-inline` on scripts, restricts all sources
+- **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
+- **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
+- **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
+- **Score integrity** — High scores validated against checksums to detect tampering
+- **SW hardening** — Service worker validates response origins, handles network failures gracefully
 
 ## Tests
 
