@@ -42,6 +42,55 @@ const ADLIBS = {
 const UI_FONT = '"Segoe UI", system-ui, sans-serif';
 
 // =============================================================
+// SHARED HELPERS
+// =============================================================
+
+/** Resolve the highest streak level reached for a given streak count. */
+function getStreakLevel(streak) {
+  let best = null;
+  for (const level of STREAK_LEVELS) {
+    if (streak >= level.min) best = level;
+  }
+  return best;
+}
+
+/** Resolve the ad-lib tier key for a given streak count. */
+function getAdlibTier(streak) {
+  let best = 3;
+  for (const key of Object.keys(ADLIBS)) {
+    const k = Number(key);
+    if (streak >= k && k > best) best = k;
+  }
+  return best;
+}
+
+/**
+ * Scan the grid along one axis for consecutive same-color runs.
+ * @param {Array[]} grid        — 2D grid of bubbles
+ * @param {number}  outerLen    — outer loop bound (rows for horizontal, cols for vertical)
+ * @param {number}  innerLen    — inner loop bound (cols for horizontal, rows for vertical)
+ * @param {Function} cellAt     — (outer, inner) => grid cell
+ * @param {Function} coordOf    — (outer, inner) => { r, c }
+ * @returns {Set<string>} matched coordinate keys ("r,c")
+ */
+function scanRuns(grid, outerLen, innerLen, cellAt, coordOf) {
+  const matched = new Set();
+  for (let o = 0; o < outerLen; o++) {
+    for (let i = 0; i <= innerLen - MIN_MATCH; i++) {
+      const color = cellAt(o, i)?.getData('colorIdx');
+      if (color === undefined) continue;
+      const run = [coordOf(o, i)];
+      for (let k = 1; i + k < innerLen; k++) {
+        if (cellAt(o, i + k)?.getData('colorIdx') === color) run.push(coordOf(o, i + k));
+        else break;
+      }
+      if (run.length >= MIN_MATCH) run.forEach(p => matched.add(`${p.r},${p.c}`));
+    }
+  }
+  return matched;
+}
+
+// =============================================================
 // SHARED UI UTILITIES
 // =============================================================
 
@@ -401,7 +450,7 @@ class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Streak tier achieved
-    const tierLevel = STREAK_LEVELS.filter(l => bestStreak >= l.min).pop();
+    const tierLevel = getStreakLevel(bestStreak);
     if (tierLevel && window.characters) {
       const charKey = tierLevel.char;
       const char = window.characters[charKey];
@@ -1390,33 +1439,22 @@ class GameScene extends Phaser.Scene {
   }
 
   findAllMatches() {
-    const matched = new Set();
+    // Scan horizontal runs (iterate rows, sweep columns)
+    const hMatched = scanRuns(
+      this.grid, GRID_ROWS, GRID_COLS,
+      (r, c) => this.grid[r][c],
+      (r, c) => ({ r, c }),
+    );
 
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c <= GRID_COLS - MIN_MATCH; c++) {
-        const color = this.grid[r][c]?.getData('colorIdx');
-        if (color === undefined) continue;
-        let run = [{ r, c }];
-        for (let k = 1; c + k < GRID_COLS; k++) {
-          if (this.grid[r][c + k]?.getData('colorIdx') === color) run.push({ r, c: c + k });
-          else break;
-        }
-        if (run.length >= MIN_MATCH) run.forEach(p => matched.add(`${p.r},${p.c}`));
-      }
-    }
+    // Scan vertical runs (iterate columns, sweep rows)
+    const vMatched = scanRuns(
+      this.grid, GRID_COLS, GRID_ROWS,
+      (c, r) => this.grid[r]?.[c],
+      (c, r) => ({ r, c }),
+    );
 
-    for (let c = 0; c < GRID_COLS; c++) {
-      for (let r = 0; r <= GRID_ROWS - MIN_MATCH; r++) {
-        const color = this.grid[r][c]?.getData('colorIdx');
-        if (color === undefined) continue;
-        let run = [{ r, c }];
-        for (let k = 1; r + k < GRID_ROWS; k++) {
-          if (this.grid[r + k]?.[c]?.getData('colorIdx') === color) run.push({ r: r + k, c });
-          else break;
-        }
-        if (run.length >= MIN_MATCH) run.forEach(p => matched.add(`${p.r},${p.c}`));
-      }
-    }
+    // Merge both directions
+    const matched = new Set([...hMatched, ...vMatched]);
 
     // Group connected matches
     const groups = [];
@@ -1679,7 +1717,7 @@ class GameScene extends Phaser.Scene {
   }
 
   showScorePopup(x, y, text, streak) {
-    const level = STREAK_LEVELS.filter(l => streak >= l.min).pop();
+    const level = getStreakLevel(streak);
     const color = level ? level.color : '#ffffff';
     const size = level ? Math.min(level.size, 40) : 22;
 
@@ -1734,7 +1772,7 @@ class GameScene extends Phaser.Scene {
   // HYPE BAR — Characters + streak reactions
   // -----------------------------------------------------------
   triggerHypeBar() {
-    const level = STREAK_LEVELS.filter(l => this.streak >= l.min).pop();
+    const level = getStreakLevel(this.streak);
     if (!level) {
       this.streakText.setAlpha(0);
       this.adlibText.setAlpha(0);
@@ -1755,8 +1793,8 @@ class GameScene extends Phaser.Scene {
     });
 
     // Ad-lib
-    const tier = Math.max(...Object.keys(ADLIBS).map(Number).filter(k => this.streak >= k));
-    const lines = ADLIBS[tier] || ADLIBS[3];
+    const tier = getAdlibTier(this.streak);
+    const lines = ADLIBS[tier];
     const adlib = lines[Phaser.Math.Between(0, lines.length - 1)];
     this.adlibText.setText(adlib);
     this.adlibText.setColor(level.color);
@@ -1841,7 +1879,7 @@ class GameScene extends Phaser.Scene {
   updateStreakUI() {
     if (this.streak > 1) {
       this.streakCounter.setText(`STREAK: ${this.streak}x`);
-      const level = STREAK_LEVELS.filter(l => this.streak >= l.min).pop();
+      const level = getStreakLevel(this.streak);
       this.streakCounter.setColor(level ? level.color : '#888888');
     } else {
       this.streakCounter.setText('');

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3] — 2026-03-20
+
+### Changed
+- Extracted `getStreakLevel(streak)` helper replacing 4 duplicated `STREAK_LEVELS.filter().pop()` chains across `showScorePopup`, `updateStreakUI`, `triggerHypeBar`, and `GameOverScene`
+- Extracted `getAdlibTier(streak)` helper replacing inline `Math.max(...Object.keys().map().filter())` expression — clearer intent, no intermediate array allocations
+- Extracted `scanRuns()` direction-agnostic line scanner replacing duplicated horizontal and vertical match-detection loops in `findAllMatches()` — single implementation, two axis calls
+- Net reduction of ~20 lines while improving readability and extensibility
+
 ## [0.3.2] — 2026-03-20
 
 ### Changed
