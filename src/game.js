@@ -39,6 +39,84 @@ const ADLIBS = {
   12: ['LEGENDARY', 'GOD MODE', 'Anime protagonist', 'UNMATCHED', 'TRANSCENDENT'],
 };
 
+const UI_FONT = '"Segoe UI", system-ui, sans-serif';
+
+// =============================================================
+// SHARED UI UTILITIES
+// =============================================================
+
+/** Draw the dark grid background used by multiple scenes */
+function drawDarkGridBg(scene) {
+  const { width, height } = scene.scale;
+  const bg = scene.add.graphics();
+  bg.fillStyle(0x0a0a1a, 1);
+  bg.fillRect(0, 0, width, height);
+  bg.lineStyle(1, 0x1a1a2e, 0.3);
+  for (let x = 0; x < width; x += 30) bg.lineBetween(x, 0, x, height);
+  for (let y = 0; y < height; y += 30) bg.lineBetween(0, y, width, y);
+  return bg;
+}
+
+/**
+ * Unified button factory — replaces 3 duplicated button methods.
+ * @param {Phaser.Scene} scene
+ * @param {object} opts - { x, y, width, height, text, subtext, color, iconFn, callback, container, radius }
+ */
+function createButton(scene, opts) {
+  const {
+    x, y, width: w, height: h, text, subtext,
+    color = '#ffffff', iconFn, callback,
+    container, radius = 10,
+  } = opts;
+  const borderColor = color.startsWith('#')
+    ? Phaser.Display.Color.HexStringToColor(color).color
+    : 0x3a3a5e;
+  const defaultBorder = borderColor === 0x3a3a5e;
+
+  const bg = scene.add.graphics();
+  const drawBg = (fill, border, borderAlpha) => {
+    bg.clear();
+    bg.fillStyle(fill, 1);
+    bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, radius);
+    bg.lineStyle(defaultBorder ? 2 : 1.5, border, borderAlpha);
+    bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, radius);
+  };
+  drawBg(0x1a1a2e, defaultBorder ? 0x3a3a5e : borderColor, defaultBorder ? 0.8 : 0.4);
+  if (container) container.add(bg);
+
+  if (iconFn) {
+    const icon = iconFn(scene, x - w / 2 + (subtext ? 30 : 25), y - (subtext ? 4 : 0));
+    if (container && icon) container.add(icon);
+  }
+
+  const textOffset = iconFn ? (subtext ? 12 : 8) : 0;
+  const label = scene.add.text(x + textOffset, y - (subtext ? 8 : 0), text, {
+    fontSize: subtext ? '20px' : '16px', fontFamily: UI_FONT,
+    fontStyle: 'bold', color: defaultBorder ? '#ffffff' : color,
+  }).setOrigin(0.5);
+  if (container) container.add(label);
+
+  if (subtext) {
+    const sub = scene.add.text(x + textOffset, y + 14, subtext, {
+      fontSize: '11px', fontFamily: UI_FONT, color: '#555555',
+    }).setOrigin(0.5);
+    if (container) container.add(sub);
+  }
+
+  const hitZone = scene.add.rectangle(x, y, w, h).setInteractive()
+    .setAlpha(0.001);
+  if (container) hitZone.setDepth(101);
+  if (container) container.add(hitZone);
+
+  hitZone.on('pointerover', () => {
+    drawBg(0x2a2a4e, defaultBorder ? 0xf1c40f : borderColor, 0.8);
+  });
+  hitZone.on('pointerout', () => {
+    drawBg(0x1a1a2e, defaultBorder ? 0x3a3a5e : borderColor, defaultBorder ? 0.8 : 0.4);
+  });
+  hitZone.on('pointerdown', callback);
+}
+
 const TIPS = [
   'Swipe a bubble toward a neighbor to swap — or tap two adjacent bubbles',
   'Match 3 or more same-colored bubbles in a row or column',
@@ -101,12 +179,7 @@ class TitleScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Background
-    const bg = this.add.graphics();
-    bg.fillStyle(0x0a0a1a, 1);
-    bg.fillRect(0, 0, width, height);
-    bg.lineStyle(1, 0x1a1a2e, 0.3);
-    for (let x = 0; x < width; x += 30) bg.lineBetween(x, 0, x, height);
-    for (let y = 0; y < height; y += 30) bg.lineBetween(0, y, width, y);
+    drawDarkGridBg(this);
 
     // Floating bubbles in background
     for (let i = 0; i < 20; i++) {
@@ -130,7 +203,7 @@ class TitleScene extends Phaser.Scene {
     // Title
     const title = this.add.text(width / 2, height * 0.18, 'WHAT\'S', {
       fontSize: '40px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: UI_FONT,
       fontStyle: 'bold',
       color: '#f1c40f',
       stroke: '#000000',
@@ -139,7 +212,7 @@ class TitleScene extends Phaser.Scene {
 
     const subtitle = this.add.text(width / 2, height * 0.27, 'POPPIN', {
       fontSize: '64px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: UI_FONT,
       fontStyle: 'bold',
       color: '#e74c3c',
       stroke: '#000000',
@@ -159,7 +232,7 @@ class TitleScene extends Phaser.Scene {
     // Tagline
     this.add.text(width / 2, height * 0.36, 'match  /  combo  /  dominate', {
       fontSize: '14px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: UI_FONT,
       color: '#666666',
       letterSpacing: 2,
     }).setOrigin(0.5);
@@ -167,26 +240,36 @@ class TitleScene extends Phaser.Scene {
     // Mode buttons
     const btnY = height * 0.47;
 
+    const btnWidth = width - 60;
+    const btnHeight = 56;
+
     // Timed mode button
-    this.createButton(width / 2, btnY, 'TIMED MODE', '90 seconds — chase the high score', () => {
-      this.scene.start('GameScene', { mode: 'timed' });
-    }, (scene, bx, by) => Icons.timer(scene, bx, by, 18, 0xffffff));
+    createButton(this, { x: width / 2, y: btnY, width: btnWidth, height: btnHeight, radius: 12,
+      text: 'TIMED MODE', subtext: '90 seconds — chase the high score',
+      iconFn: (s, bx, by) => Icons.timer(s, bx, by, 18, 0xffffff),
+      callback: () => this.scene.start('GameScene', { mode: 'timed' }),
+    });
 
     // Zen mode button
-    this.createButton(width / 2, btnY + 80, 'ZEN MODE', 'No timer — pure vibes', () => {
-      this.scene.start('GameScene', { mode: 'zen' });
-    }, (scene, bx, by) => Icons.zen(scene, bx, by, 18, 0xffffff));
+    createButton(this, { x: width / 2, y: btnY + 80, width: btnWidth, height: btnHeight, radius: 12,
+      text: 'ZEN MODE', subtext: 'No timer — pure vibes',
+      iconFn: (s, bx, by) => Icons.zen(s, bx, by, 18, 0xffffff),
+      callback: () => this.scene.start('GameScene', { mode: 'zen' }),
+    });
 
     // How to Play button
-    this.createButton(width / 2, btnY + 160, 'HOW TO PLAY', 'Tips, controls, power-ups', () => {
-      this.scene.start('TipsScene');
-    }, (scene, bx, by) => Icons.help(scene, bx, by, 18, 0xffffff));
+    createButton(this, { x: width / 2, y: btnY + 160, width: btnWidth, height: btnHeight, radius: 12,
+      text: 'HOW TO PLAY', subtext: 'Tips, controls, power-ups',
+      iconFn: (s, bx, by) => Icons.help(s, bx, by, 18, 0xffffff),
+      callback: () => this.scene.start('TipsScene'),
+    });
 
     // First-time tutorial check
     if (!SafeStorage.get('whatspoppin_played', null)) {
-      this.createButton(width / 2, btnY + 240, 'TUTORIAL', 'Learn the basics step by step', () => {
-        this.scene.start('TutorialScene');
-      }, null);
+      createButton(this, { x: width / 2, y: btnY + 240, width: btnWidth, height: btnHeight, radius: 12,
+        text: 'TUTORIAL', subtext: 'Learn the basics step by step',
+        callback: () => this.scene.start('TutorialScene'),
+      });
     }
 
     // High score display
@@ -195,7 +278,7 @@ class TitleScene extends Phaser.Scene {
       Icons.star(this, width / 2 - 100, height * 0.85, 14, 0xf1c40f);
       this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`, {
         fontSize: '18px',
-        fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontFamily: UI_FONT,
         fontStyle: 'bold',
         color: '#f1c40f',
         stroke: '#000000',
@@ -206,7 +289,7 @@ class TitleScene extends Phaser.Scene {
     // Credits
     this.add.text(width / 2, height * 0.93, 'by DareDev256', {
       fontSize: '12px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: UI_FONT,
       color: '#444444',
     }).setOrigin(0.5);
 
@@ -217,57 +300,6 @@ class TitleScene extends Phaser.Scene {
     });
   }
 
-  createButton(x, y, text, subtext, callback, iconFn) {
-    const { width } = this.scale;
-    const btnWidth = width - 60;
-    const btnHeight = 56;
-
-    const bg = this.add.graphics();
-    bg.fillStyle(0x1a1a2e, 1);
-    bg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-    bg.lineStyle(2, 0x3a3a5e, 0.8);
-    bg.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-
-    // Icon (drawn left of text)
-    if (iconFn) {
-      iconFn(this, x - btnWidth / 2 + 30, y - 4);
-    }
-
-    const textOffset = iconFn ? 12 : 0;
-    const label = this.add.text(x + textOffset, y - 8, text, {
-      fontSize: '20px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
-      fontStyle: 'bold',
-      color: '#ffffff',
-    }).setOrigin(0.5);
-
-    const sub = this.add.text(x + textOffset, y + 14, subtext, {
-      fontSize: '11px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
-      color: '#555555',
-    }).setOrigin(0.5);
-
-    const hitZone = this.add.rectangle(x, y, btnWidth, btnHeight).setInteractive();
-    hitZone.setAlpha(0.001);
-
-    hitZone.on('pointerover', () => {
-      bg.clear();
-      bg.fillStyle(0x2a2a4e, 1);
-      bg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-      bg.lineStyle(2, 0xf1c40f, 0.8);
-      bg.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-    });
-
-    hitZone.on('pointerout', () => {
-      bg.clear();
-      bg.fillStyle(0x1a1a2e, 1);
-      bg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-      bg.lineStyle(2, 0x3a3a5e, 0.8);
-      bg.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 12);
-    });
-
-    hitZone.on('pointerdown', callback);
-  }
 }
 
 // =============================================================
@@ -288,7 +320,7 @@ class GameOverScene extends Phaser.Scene {
     // Game Over text
     const goText = this.add.text(width / 2, height * 0.12, 'TIME\'S UP', {
       fontSize: '42px',
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: UI_FONT,
       fontStyle: 'bold',
       color: '#e74c3c',
       stroke: '#000000',
@@ -312,12 +344,12 @@ class GameOverScene extends Phaser.Scene {
 
     // Score
     this.add.text(width / 2, cardY + 30, 'FINAL SCORE', {
-      fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#888888',
     }).setOrigin(0.5);
 
     const scoreText = this.add.text(width / 2, cardY + 65, '0', {
-      fontSize: '48px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '48px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
@@ -337,7 +369,7 @@ class GameOverScene extends Phaser.Scene {
       Icons.star(this, width / 2 - 95, cardY + 100, 12, 0xf1c40f);
       Icons.star(this, width / 2 + 95, cardY + 100, 12, 0xf1c40f);
       const badge = this.add.text(width / 2, cardY + 100, 'NEW HIGH SCORE', {
-        fontSize: '18px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '18px', fontFamily: UI_FONT,
         fontStyle: 'bold', color: '#f1c40f',
       }).setOrigin(0.5).setAlpha(0);
 
@@ -353,18 +385,18 @@ class GameOverScene extends Phaser.Scene {
     // Stats
     const statsY = cardY + 140;
     this.add.text(width * 0.25, statsY, `MOVES\n${moves}`, {
-      fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
     this.add.text(width * 0.5, statsY, `BEST STREAK\n${bestStreak}x`, {
-      fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
     const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
     this.add.text(width * 0.75, statsY, `AVG/MOVE\n${avgPerMove}`, {
-      fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
@@ -378,7 +410,7 @@ class GameOverScene extends Phaser.Scene {
         char.draw(charGfx, width / 2, height * 0.62, 1.2);
 
         this.add.text(width / 2, height * 0.73, `${char.name} — ${char.title}`, {
-          fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+          fontSize: '16px', fontFamily: UI_FONT,
           fontStyle: 'italic', color: tierLevel.color,
         }).setOrigin(0.5);
       }
@@ -386,14 +418,17 @@ class GameOverScene extends Phaser.Scene {
 
     // Buttons
     const btnY1 = height * 0.80;
-    this.createIconButton(width / 2, btnY1, 'PLAY AGAIN', '#2ecc71',
-      (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
-      () => this.scene.start('GameScene', { mode: 'timed' })
-    );
-    this.createIconButton(width / 2, btnY1 + 55, 'MENU', '#aaaaaa',
-      (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
-      () => this.scene.start('TitleScene')
-    );
+    const btnW = width - 80;
+    createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 42,
+      text: 'PLAY AGAIN', color: '#2ecc71',
+      iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
+      callback: () => this.scene.start('GameScene', { mode: 'timed' }),
+    });
+    createButton(this, { x: width / 2, y: btnY1 + 55, width: btnW, height: 42,
+      text: 'MENU', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('TitleScene'),
+    });
 
     // Confetti on new high
     if (isNewHigh) {
@@ -419,28 +454,6 @@ class GameOverScene extends Phaser.Scene {
     }
   }
 
-  createIconButton(x, y, text, color, iconFn, callback) {
-    const { width } = this.scale;
-    const btnWidth = width - 80;
-    const btnHeight = 42;
-
-    const bg = this.add.graphics();
-    bg.fillStyle(0x1a1a2e, 1);
-    bg.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 10);
-    const borderColor = Phaser.Display.Color.HexStringToColor(color).color;
-    bg.lineStyle(1.5, borderColor, 0.4);
-    bg.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 10);
-
-    if (iconFn) iconFn(this, x - btnWidth / 2 + 25, y);
-
-    this.add.text(x + 8, y, text, {
-      fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
-      fontStyle: 'bold', color: color,
-    }).setOrigin(0.5);
-
-    const hitZone = this.add.rectangle(x, y, btnWidth, btnHeight).setInteractive().setAlpha(0.001);
-    hitZone.on('pointerdown', callback);
-  }
 }
 
 // =============================================================
@@ -540,7 +553,7 @@ class TutorialScene extends Phaser.Scene {
           const colors = ['#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6'];
           labels.forEach((label, i) => {
             const t = scene.add.text(cx, cy - 30 + i * 28, label, {
-              fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+              fontSize: '16px', fontFamily: UI_FONT,
               fontStyle: 'bold', color: colors[i],
               stroke: '#000000', strokeThickness: 2,
             }).setOrigin(0.5);
@@ -578,13 +591,13 @@ class TutorialScene extends Phaser.Scene {
       const step = steps[idx];
 
       const title = this.add.text(width / 2, height * 0.15, step.title, {
-        fontSize: '28px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '28px', fontFamily: UI_FONT,
         fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
       }).setOrigin(0.5);
       this.stepObjects.push(title);
 
       const desc = this.add.text(width / 2, height * 0.62, step.desc, {
-        fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '14px', fontFamily: UI_FONT,
         color: '#bbbbbb', align: 'center', lineSpacing: 6,
         wordWrap: { width: width - 60 },
       }).setOrigin(0.5, 0);
@@ -619,7 +632,7 @@ class TutorialScene extends Phaser.Scene {
     };
 
     this.nextLabel = this.add.text(width / 2, navY, 'NEXT', {
-      fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '16px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#f1c40f',
     }).setOrigin(0.5);
 
@@ -639,7 +652,7 @@ class TutorialScene extends Phaser.Scene {
 
     // Skip
     const skip = this.add.text(width - 20, 25, 'SKIP', {
-      fontSize: '13px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '13px', fontFamily: UI_FONT,
       color: '#555555',
     }).setOrigin(1, 0).setInteractive();
     skip.on('pointerdown', () => {
@@ -664,7 +677,7 @@ class TipsScene extends Phaser.Scene {
 
     // Title
     this.add.text(width / 2, 30, 'HOW TO PLAY', {
-      fontSize: '28px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '28px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
@@ -718,13 +731,13 @@ class TipsScene extends Phaser.Scene {
       bg.strokeRoundedRect(15, yPos, width - 30, cardH, 10);
 
       this.add.text(25, yPos + 8, section.title, {
-        fontSize: '13px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '13px', fontFamily: UI_FONT,
         fontStyle: 'bold', color: section.color,
       });
 
       section.items.forEach((item, i) => {
         this.add.text(25, yPos + 28 + i * 22, `•  ${item}`, {
-          fontSize: '12px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+          fontSize: '12px', fontFamily: UI_FONT,
           color: '#bbbbbb',
           wordWrap: { width: width - 60 },
         });
@@ -743,7 +756,7 @@ class TipsScene extends Phaser.Scene {
 
     Icons.back(this, width / 2 - 35, backY, 14, 0xffffff);
     this.add.text(width / 2 + 5, backY, 'BACK', {
-      fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '16px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0.5);
 
@@ -791,12 +804,7 @@ class GameScene extends Phaser.Scene {
     }, this);
 
     // Background
-    const bg = this.add.graphics();
-    bg.fillStyle(0x0a0a1a, 1);
-    bg.fillRect(0, 0, width, height);
-    bg.lineStyle(1, 0x1a1a2e, 0.3);
-    for (let x = 0; x < width; x += 30) bg.lineBetween(x, 0, x, height);
-    for (let y = 0; y < height; y += 30) bg.lineBetween(0, y, width, y);
+    drawDarkGridBg(this);
 
     // ---- HYPE BAR ----
     this.hypeBar = this.add.container(0, 0);
@@ -809,20 +817,20 @@ class GameScene extends Phaser.Scene {
     this.hypeBar.add(hypeBackground);
 
     this.streakText = this.add.text(width / 2, 35, '', {
-      fontSize: '28px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '28px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setAlpha(0);
     this.hypeBar.add(this.streakText);
 
     this.adlibText = this.add.text(width / 2, 75, '', {
-      fontSize: '20px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '20px', fontFamily: UI_FONT,
       fontStyle: 'italic', color: '#aaaaaa',
     }).setOrigin(0.5).setAlpha(0);
     this.hypeBar.add(this.adlibText);
 
     // Character name display
     this.charNameText = this.add.text(20, 95, '', {
-      fontSize: '12px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '12px', fontFamily: UI_FONT,
       color: '#666666', fontStyle: 'italic',
     }).setAlpha(0);
     this.hypeBar.add(this.charNameText);
@@ -838,7 +846,7 @@ class GameScene extends Phaser.Scene {
       this.timerBg.fillRect(0, HYPE_BAR_HEIGHT, width, 4);
 
       this.timerText = this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, `${GAME_TIME}s`, {
-        fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '16px', fontFamily: UI_FONT,
         fontStyle: 'bold', color: '#2ecc71', stroke: '#000000', strokeThickness: 2,
       }).setOrigin(0.5, 0);
 
@@ -862,24 +870,24 @@ class GameScene extends Phaser.Scene {
     scoreBg.lineBetween(0, height - 65, width, height - 65);
 
     this.scoreText = this.add.text(20, height - 55, 'SCORE: 0', {
-      fontSize: '20px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '20px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 3,
     });
 
     this.streakCounter = this.add.text(width - 20, height - 55, '', {
-      fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '16px', fontFamily: UI_FONT,
       color: '#888888',
     }).setOrigin(1, 0);
 
     this.bestStreakText = this.add.text(width - 20, height - 33, '', {
-      fontSize: '12px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '12px', fontFamily: UI_FONT,
       color: '#555555',
     }).setOrigin(1, 0);
 
     // Mode indicator
     if (this.gameMode === 'zen') {
       this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, 'ZEN MODE', {
-        fontSize: '12px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+        fontSize: '12px', fontFamily: UI_FONT,
         color: '#3498db',
       }).setOrigin(0.5, 0);
     }
@@ -923,7 +931,7 @@ class GameScene extends Phaser.Scene {
     // ---- TIPS DISPLAY (shows rotating tips at bottom) ----
     this.tipIndex = Phaser.Math.Between(0, TIPS.length - 1);
     this.tipText = this.add.text(width / 2, height - 12, TIPS[this.tipIndex], {
-      fontSize: '10px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '10px', fontFamily: UI_FONT,
       color: '#444444', fontStyle: 'italic', align: 'center',
       wordWrap: { width: width - 40 },
     }).setOrigin(0.5, 1).setDepth(1);
@@ -946,7 +954,7 @@ class GameScene extends Phaser.Scene {
 
     // "GO!" flash
     const goText = this.add.text(width / 2, height / 2, 'GO!', {
-      fontSize: '64px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '64px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(50);
 
@@ -1004,28 +1012,28 @@ class GameScene extends Phaser.Scene {
 
     // PAUSED title
     const pauseTitle = this.add.text(width / 2, cardY + 30, 'PAUSED', {
-      fontSize: '32px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '32px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
     this.pauseContainer.add(pauseTitle);
 
     // Current score
     const scoreLabel = this.add.text(width / 2, cardY + 70, `SCORE: ${this.score.toLocaleString()}`, {
-      fontSize: '18px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '18px', fontFamily: UI_FONT,
       color: '#f1c40f',
     }).setOrigin(0.5);
     this.pauseContainer.add(scoreLabel);
 
     // Tip in pause screen
     const tipLabel = this.add.text(width / 2, cardY + 105, 'TIP', {
-      fontSize: '11px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '11px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#555555',
     }).setOrigin(0.5);
     this.pauseContainer.add(tipLabel);
 
     const pauseTip = TIPS[Phaser.Math.Between(0, TIPS.length - 1)];
     const tipDisplay = this.add.text(width / 2, cardY + 130, pauseTip, {
-      fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#aaaaaa', fontStyle: 'italic', align: 'center',
       wordWrap: { width: cardW - 40 },
     }).setOrigin(0.5, 0);
@@ -1037,64 +1045,25 @@ class GameScene extends Phaser.Scene {
     const btnX = width / 2;
 
     // Resume
-    this.createPauseButton(btnX, cardY + 210, btnW, btnH, 'RESUME', '#2ecc71',
-      (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
-      () => this.resumeGame()
-    );
+    createButton(this, { x: btnX, y: cardY + 210, width: btnW, height: btnH,
+      text: 'RESUME', color: '#2ecc71', container: this.pauseContainer,
+      iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
+      callback: () => this.resumeGame(),
+    });
 
     // Restart
-    this.createPauseButton(btnX, cardY + 270, btnW, btnH, 'RESTART', '#f1c40f',
-      (s, bx, by) => Icons.restart(s, bx, by, 14, 0xf1c40f),
-      () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.restart({ mode: this.gameMode }); }
-    );
+    createButton(this, { x: btnX, y: cardY + 270, width: btnW, height: btnH,
+      text: 'RESTART', color: '#f1c40f', container: this.pauseContainer,
+      iconFn: (s, bx, by) => Icons.restart(s, bx, by, 14, 0xf1c40f),
+      callback: () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.restart({ mode: this.gameMode }); },
+    });
 
     // Exit to menu
-    this.createPauseButton(btnX, cardY + 330, btnW, btnH, 'EXIT TO MENU', '#e74c3c',
-      (s, bx, by) => Icons.close(s, bx, by, 14, 0xe74c3c),
-      () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.start('TitleScene'); }
-    );
-  }
-
-  createPauseButton(x, y, w, h, text, color, iconFn, callback) {
-    const bg = this.add.graphics();
-    const borderColor = Phaser.Display.Color.HexStringToColor(color).color;
-    bg.fillStyle(0x1a1a2e, 1);
-    bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-    bg.lineStyle(1.5, borderColor, 0.4);
-    bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-    this.pauseContainer.add(bg);
-
-    if (iconFn) {
-      const icon = iconFn(this, x - w / 2 + 25, y);
-      this.pauseContainer.add(icon);
-    }
-
-    const label = this.add.text(x + 8, y, text, {
-      fontSize: '16px', fontFamily: '"Segoe UI", system-ui, sans-serif',
-      fontStyle: 'bold', color: color,
-    }).setOrigin(0.5);
-    this.pauseContainer.add(label);
-
-    const hitZone = this.add.rectangle(x, y, w, h).setInteractive().setAlpha(0.001).setDepth(101);
-    this.pauseContainer.add(hitZone);
-
-    hitZone.on('pointerover', () => {
-      bg.clear();
-      bg.fillStyle(0x2a2a4e, 1);
-      bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-      bg.lineStyle(2, borderColor, 0.8);
-      bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    createButton(this, { x: btnX, y: cardY + 330, width: btnW, height: btnH,
+      text: 'EXIT TO MENU', color: '#e74c3c', container: this.pauseContainer,
+      iconFn: (s, bx, by) => Icons.close(s, bx, by, 14, 0xe74c3c),
+      callback: () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.start('TitleScene'); },
     });
-
-    hitZone.on('pointerout', () => {
-      bg.clear();
-      bg.fillStyle(0x1a1a2e, 1);
-      bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-      bg.lineStyle(1.5, borderColor, 0.4);
-      bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-    });
-
-    hitZone.on('pointerdown', callback);
   }
 
   resumeGame() {
@@ -1563,7 +1532,7 @@ class GameScene extends Phaser.Scene {
         // Show power-up name
         const pos = this.gridToWorld(pu.row, pu.col);
         const label = this.add.text(pos.x, pos.y - 30, POWERUP_NAMES[pu.type], {
-          fontSize: '14px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+          fontSize: '14px', fontFamily: UI_FONT,
           fontStyle: 'bold', color: '#ffd700', stroke: '#000000', strokeThickness: 3,
         }).setOrigin(0.5).setDepth(25);
         this.tweens.add({
@@ -1715,7 +1684,7 @@ class GameScene extends Phaser.Scene {
     const size = level ? Math.min(level.size, 40) : 22;
 
     const popup = this.add.text(x, y, text, {
-      fontSize: `${size}px`, fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: `${size}px`, fontFamily: UI_FONT,
       fontStyle: 'bold', color, stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(20);
 
@@ -1939,7 +1908,7 @@ class GameScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const shuffleText = this.add.text(width / 2, height / 2, 'SHUFFLE!', {
-      fontSize: '36px', fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontSize: '36px', fontFamily: UI_FONT,
       fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(30);
 

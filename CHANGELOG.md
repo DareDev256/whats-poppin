@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2] — 2026-03-20
+
+### Changed
+- Extracted unified `createButton()` factory replacing 3 duplicated button methods across TitleScene, GameOverScene, and GameScene — single source of truth for button rendering, hover states, and hit zones
+- Extracted `drawDarkGridBg()` utility replacing duplicated dark grid background drawing in TitleScene and GameScene
+- Extracted `UI_FONT` constant replacing 40+ hardcoded `'"Segoe UI", system-ui, sans-serif'` strings — font changes are now a one-liner
+- Net reduction of ~30 lines while improving maintainability
+
 ## [0.3.1] — 2026-03-18
 
 ### Security
