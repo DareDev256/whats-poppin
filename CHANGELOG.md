@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] — 2026-03-21
+
+### Added
+- **Hint system** — tap the lightbulb button (top-right, beside pause) to reveal a valid swap with pulsing gold rings and a directional guide line
+- **Auto-hint on idle** — after 5 seconds of inactivity, a hint appears automatically to keep players moving (the "auto-select" feature)
+- **Hint economy** — timed mode gives 3 hints (displayed as a counter badge); zen mode has unlimited hints
+- **Lightbulb icon** — new `Icons.hint()` procedural icon with radiating rays
+- Hint visualization renders in the game loop (`update()`) with smooth sine-wave pulsing — outer glow ring + inner ring + connecting guide line between the two swap targets
+- Hints auto-clear on any player interaction (tap, swipe, or swap)
+
 ## [0.3.4] — 2026-03-21
 
 ### Changed

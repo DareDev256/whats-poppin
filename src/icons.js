@@ -181,6 +181,28 @@ class Icons {
     g.fillCircle(x, y + size * 0.43, 2.5);
     return g;
   }
+
+  // Lightbulb icon (for hint system)
+  static hint(scene, x, y, size = 16, color = 0xf1c40f) {
+    const g = scene.add.graphics();
+    const r = size * 0.28;
+    // Bulb
+    g.fillStyle(color, 0.9);
+    g.fillCircle(x, y - size * 0.1, r);
+    // Rays
+    g.lineStyle(1.5, color, 0.6);
+    const rayLen = size * 0.18;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3 - Math.PI / 2;
+      const rx = x + Math.cos(angle) * (r + 2);
+      const ry = (y - size * 0.1) + Math.sin(angle) * (r + 2);
+      g.lineBetween(rx, ry, rx + Math.cos(angle) * rayLen, ry + Math.sin(angle) * rayLen);
+    }
+    // Base
+    g.fillStyle(0x888888, 0.8);
+    g.fillRect(x - r * 0.5, y + size * 0.18, r, size * 0.15);
+    return g;
+  }
 }
 
 window.Icons = Icons;

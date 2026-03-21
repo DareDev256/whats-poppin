@@ -841,6 +841,12 @@ class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.powerUpOverlay = null;
     this.pauseContainer = null;
+    this.hintPair = null;      // { a: {r,c}, b: {r,c} } — current hint targets
+    this.hintGfx = null;       // Graphics object for hint rings
+    this.hintActive = false;
+    this.idleTime = 0;         // ms since last input
+    this.hintsUsed = 0;
+    this.maxHints = 3;         // timed mode limit; zen = unlimited
   }
 
   create() {
@@ -981,6 +987,45 @@ class GameScene extends Phaser.Scene {
 
     const pauseHit = this.add.rectangle(pauseBtnX, pauseBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(42);
     pauseHit.on('pointerdown', () => this.togglePause());
+
+    // ---- HINT BUTTON (left of pause) ----
+    this.maxHints = this.gameMode === 'zen' ? Infinity : 3;
+    const hintBtnX = pauseBtnX - pauseBtnSize - 8;
+    const hintBtnY = pauseBtnY;
+
+    this.hintBtnBg = this.add.graphics();
+    this.hintBtnBg.fillStyle(0x1a1a2e, 0.8);
+    this.hintBtnBg.fillRoundedRect(hintBtnX - pauseBtnSize / 2, hintBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
+    this.hintBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
+    this.hintBtnBg.strokeRoundedRect(hintBtnX - pauseBtnSize / 2, hintBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
+    this.hintBtnBg.setDepth(40);
+
+    this.hintIconGfx = Icons.hint(this, hintBtnX, hintBtnY, 20, 0xf1c40f);
+    this.hintIconGfx.setDepth(41);
+
+    this.hintCountText = this.add.text(hintBtnX + 12, hintBtnY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`, {
+      fontSize: '10px', fontFamily: UI_FONT, fontStyle: 'bold',
+      color: '#f1c40f', stroke: '#000000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(42);
+
+    const hintHit = this.add.rectangle(hintBtnX, hintBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(43);
+    hintHit.on('pointerdown', () => this.triggerHint());
+
+    // Hint overlay graphics (drawn in update loop)
+    this.hintGfx = this.add.graphics().setDepth(4);
+
+    // Idle timer — auto-hint after 5s of inactivity
+    this.idleTime = 0;
+    this.time.addEvent({
+      delay: 500, loop: true,
+      callback: () => {
+        if (this.isPaused || this.gameOver || this.isProcessing || this.hintActive) return;
+        this.idleTime += 500;
+        if (this.idleTime >= 5000) {
+          this.showAutoHint();
+        }
+      }
+    });
 
     // ---- TIPS DISPLAY (shows rotating tips at bottom) ----
     this.tipIndex = Phaser.Math.Between(0, TIPS.length - 1);
@@ -1157,6 +1202,37 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    // Render hint glow rings
+    if (this.hintGfx) {
+      this.hintGfx.clear();
+      if (this.hintActive && this.hintPair) {
+        const pulse = 0.5 + 0.5 * Math.sin(time * 0.004); // 0→1 oscillation
+        const alpha = 0.3 + pulse * 0.5;
+        const radius = (BUBBLE_SIZE / 2) + 2 + pulse * 4;
+        const hintColor = 0xf1c40f;
+
+        [this.hintPair.a, this.hintPair.b].forEach(cell => {
+          const b = this.grid[cell.r]?.[cell.c];
+          if (!b || !b.active) { this.clearHint(); return; }
+          const pos = this.gridToWorld(cell.r, cell.c);
+          // Outer glow
+          this.hintGfx.lineStyle(3, hintColor, alpha * 0.4);
+          this.hintGfx.strokeCircle(pos.x, pos.y, radius + 3);
+          // Inner ring
+          this.hintGfx.lineStyle(2, hintColor, alpha);
+          this.hintGfx.strokeCircle(pos.x, pos.y, radius);
+        });
+
+        // Connecting arrow line between the two hint bubbles
+        const posA = this.gridToWorld(this.hintPair.a.r, this.hintPair.a.c);
+        const posB = this.gridToWorld(this.hintPair.b.r, this.hintPair.b.c);
+        const midX = (posA.x + posB.x) / 2;
+        const midY = (posA.y + posB.y) / 2;
+        this.hintGfx.lineStyle(1.5, hintColor, alpha * 0.3);
+        this.hintGfx.lineBetween(posA.x, posA.y, midX, midY);
+      }
+    }
   }
 
   // -----------------------------------------------------------
@@ -1300,6 +1376,8 @@ class GameScene extends Phaser.Scene {
   // -----------------------------------------------------------
   onPointerDown(pointer, bubble) {
     if (this.isProcessing || this.gameOver || this.isPaused) return;
+    this.idleTime = 0;
+    this.clearHint();
     this.swipeStart = { x: pointer.x, y: pointer.y };
     this.swipeBubble = bubble;
     window.audioEngine.playSelect();
@@ -1382,6 +1460,8 @@ class GameScene extends Phaser.Scene {
   // SWAP + MATCH
   // -----------------------------------------------------------
   swapBubbles(a, b) {
+    this.clearHint();
+    this.idleTime = 0;
     const r1 = a.getData('row'), c1 = a.getData('col');
     const r2 = b.getData('row'), c2 = b.getData('col');
     const pos1 = this.gridToWorld(r1, c1);
@@ -1892,6 +1972,69 @@ class GameScene extends Phaser.Scene {
     if (this.bestStreak > 2) {
       this.bestStreakText.setText(`BEST: ${this.bestStreak}x`);
     }
+  }
+
+  // -----------------------------------------------------------
+  // HINT SYSTEM
+  // -----------------------------------------------------------
+
+  /** Find a valid swap pair. Returns {a:{r,c}, b:{r,c}} or null. */
+  findHintMove() {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (c + 1 < GRID_COLS) {
+          this.swapGridData(r, c, r, c + 1);
+          const has = this.findAllMatches().length > 0;
+          this.swapGridData(r, c, r, c + 1);
+          if (has) return { a: { r, c }, b: { r, c: c + 1 } };
+        }
+        if (r + 1 < GRID_ROWS) {
+          this.swapGridData(r, c, r + 1, c);
+          const has = this.findAllMatches().length > 0;
+          this.swapGridData(r, c, r + 1, c);
+          if (has) return { a: { r, c }, b: { r: r + 1, c } };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Player-triggered hint (costs a hint charge in timed mode). */
+  triggerHint() {
+    if (this.isPaused || this.gameOver || this.isProcessing) return;
+    if (this.hintActive) { this.clearHint(); return; }
+    if (this.hintsUsed >= this.maxHints) {
+      // Flash the counter red to signal exhaustion
+      this.hintCountText.setColor('#e74c3c');
+      this.time.delayedCall(400, () => this.hintCountText.setColor('#666666'));
+      return;
+    }
+    const move = this.findHintMove();
+    if (!move) return;
+    this.hintPair = move;
+    this.hintActive = true;
+    this.hintsUsed++;
+    const remaining = this.maxHints === Infinity ? '∞' : `${this.maxHints - this.hintsUsed}`;
+    this.hintCountText.setText(remaining);
+    if (this.maxHints !== Infinity && this.hintsUsed >= this.maxHints) {
+      this.hintCountText.setColor('#666666');
+    }
+  }
+
+  /** Auto-hint from idle timer (free, doesn't cost charges). */
+  showAutoHint() {
+    if (this.hintActive) return;
+    const move = this.findHintMove();
+    if (!move) return;
+    this.hintPair = move;
+    this.hintActive = true;
+  }
+
+  /** Clear any active hint visualization. */
+  clearHint() {
+    this.hintPair = null;
+    this.hintActive = false;
+    if (this.hintGfx) this.hintGfx.clear();
   }
 
   // -----------------------------------------------------------

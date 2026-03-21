@@ -9,6 +9,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Streak system** — Chain matches for multipliers, unlock characters at 3x/5x/8x/12x
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
+- **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen
 - **Two modes** — Timed (90s) and Zen (no timer)
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -18,7 +19,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (tamper-resistant localStorage) + SW registration
-  game.js        — Grid engine, 6 Phaser scenes, shared helpers (scanRuns, createButton, etc.)
+  game.js        — Grid engine, 6 Phaser scenes, hint system, shared helpers (scanRuns, createButton, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
@@ -48,7 +49,7 @@ All source files attach their exports to `window` — no bundler, no module syst
 npm test
 ```
 
-82 unit tests covering deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
+82+ unit tests covering deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
 
 ## Tech Stack
 
