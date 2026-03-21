@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.4] — 2026-03-21
+
+### Changed
+- Added JSDoc documentation to `PowerUpSystem` class — `analyze()`, `isLOrTShape()`, `getAffectedCells()` now have full param/return docs and behavioral descriptions
+- Added JSDoc documentation to `PowerUpRenderer.draw()` with parameter descriptions
+- Added JSDoc block to `POWERUP_TYPES` enum explaining each type and its match pattern trigger
+- Added comprehensive JSDoc to `SafeStorage` in `init.js` — block-level usage example, method docs for `get()`, `getInt()`, `set()`, and `_checksum()`
+- Expanded `drawDarkGridBg()` JSDoc with return type and visual description
+- Updated README: added Architecture section documenting file roles and load order, added `npm run dev` command, confirmed test count (82), added `npm run dev` command, documented race condition guards in Security section
+
 ## [0.3.3] — 2026-03-20
 
 ### Changed

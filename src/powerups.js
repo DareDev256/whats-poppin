@@ -1,14 +1,24 @@
 // What's Poppin — Power-Up System
 // Match 4 = Line Clear, Match 5+ = Bomb, L/T shape = Color Nuke
 
+/**
+ * Power-up type enum. Each match pattern produces a specific power-up:
+ * - NONE (0) — no power-up (match < 4)
+ * - LINE_H (1) — horizontal line clear (match 4 in a row)
+ * - LINE_V (2) — vertical line clear (match 4 in a column)
+ * - BOMB (3) — 3×3 area explosion (match 5+ in a line)
+ * - NUKE (4) — destroy all bubbles of one color (L/T-shaped match of 5+)
+ * @enum {number}
+ */
 const POWERUP_TYPES = {
   NONE: 0,
-  LINE_H: 1,   // Horizontal line clear
-  LINE_V: 2,   // Vertical line clear
-  BOMB: 3,     // 3x3 explosion
-  NUKE: 4,     // Destroy all of one color
+  LINE_H: 1,
+  LINE_V: 2,
+  BOMB: 3,
+  NUKE: 4,
 };
 
+/** Human-readable labels for each power-up type (used in UI overlays). */
 const POWERUP_NAMES = {
   [POWERUP_TYPES.LINE_H]: 'LINE →',
   [POWERUP_TYPES.LINE_V]: 'LINE ↓',
@@ -16,8 +26,18 @@ const POWERUP_NAMES = {
   [POWERUP_TYPES.NUKE]: 'NUKE',
 };
 
+/**
+ * Stateless analysis engine for match-3 power-up resolution.
+ * Determines what power-up a match group earns and which cells it affects.
+ */
 class PowerUpSystem {
-  // Determine what power-up a match group should create
+  /**
+   * Determine what power-up a match group should produce.
+   * Priority: L/T shape (5+) → NUKE, 5+ linear → BOMB, 4 linear → LINE.
+   * @param {Array<Phaser.GameObjects.Sprite>} matchGroup — matched bubble sprites
+   * @param {Array[]} grid — 2D game grid (used for position lookups)
+   * @returns {number} POWERUP_TYPES value
+   */
   static analyze(matchGroup, grid) {
     if (!matchGroup || matchGroup.length < 4) return POWERUP_TYPES.NONE;
 
@@ -45,14 +65,31 @@ class PowerUpSystem {
     return POWERUP_TYPES.NONE;
   }
 
+  /**
+   * Check whether positions form an L or T shape (spans both axes).
+   * @param {{r:number, c:number}[]} positions — grid coordinates
+   * @returns {boolean} true if the shape is non-linear (L/T)
+   */
   static isLOrTShape(positions) {
-    // Check if positions span both rows and columns (not a straight line)
     const rows = new Set(positions.map(p => p.r));
     const cols = new Set(positions.map(p => p.c));
     return rows.size > 1 && cols.size > 1;
   }
 
-  // Get cells affected by activating a power-up
+  /**
+   * Calculate which cells a power-up activation destroys.
+   * - LINE_H → entire row; LINE_V → entire column
+   * - BOMB → 3×3 area centered on (row, col)
+   * - NUKE → every bubble matching colorIdx
+   * @param {number} type     — POWERUP_TYPES value
+   * @param {number} row      — activation row
+   * @param {number} col      — activation column
+   * @param {number} colorIdx — bubble color index (for NUKE)
+   * @param {Array[]} grid    — 2D game grid
+   * @param {number} gridRows — total row count
+   * @param {number} gridCols — total column count
+   * @returns {{r:number, c:number}[]} affected cell coordinates
+   */
   static getAffectedCells(type, row, col, colorIdx, grid, gridRows, gridCols) {
     const cells = [];
 
@@ -96,8 +133,21 @@ class PowerUpSystem {
   }
 }
 
-// Draw power-up overlays on special bubbles
+/**
+ * Draws animated power-up overlays on special bubbles.
+ * Each type has a distinct visual: arrows (LINE), concentric rings (BOMB),
+ * or a rotating star burst (NUKE). All animations pulse using sin(time).
+ */
 class PowerUpRenderer {
+  /**
+   * Draw a power-up overlay onto a Phaser Graphics object.
+   * @param {Phaser.GameObjects.Graphics} graphics — target graphics layer
+   * @param {number} type — POWERUP_TYPES value
+   * @param {number} x — center x position
+   * @param {number} y — center y position
+   * @param {number} size — bubble diameter (used for scaling)
+   * @param {number} time — game time in ms (drives pulse animation)
+   */
   static draw(graphics, type, x, y, size, time) {
     const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
     const halfSize = size / 2;

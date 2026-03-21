@@ -94,7 +94,12 @@ function scanRuns(grid, outerLen, innerLen, cellAt, coordOf) {
 // SHARED UI UTILITIES
 // =============================================================
 
-/** Draw the dark grid background used by multiple scenes */
+/**
+ * Draw the dark grid background shared by TitleScene and GameScene.
+ * Renders a deep navy fill overlaid with a subtle grid of thin lines.
+ * @param {Phaser.Scene} scene — target scene
+ * @returns {Phaser.GameObjects.Graphics} the background graphics object
+ */
 function drawDarkGridBg(scene) {
   const { width, height } = scene.scale;
   const bg = scene.add.graphics();

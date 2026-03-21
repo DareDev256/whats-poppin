@@ -13,6 +13,23 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
 
+## Architecture
+
+```
+src/
+  init.js        — SafeStorage (tamper-resistant localStorage) + SW registration
+  game.js        — Grid engine, 6 Phaser scenes, shared helpers (scanRuns, createButton, etc.)
+  powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
+  audio.js       — AudioEngine — fully synthesized sound via Web Audio API
+  characters.js  — Procedurally drawn characters (Phaser Graphics API)
+  icons.js       — Icons class — SVG-style icon system replacing emoji
+  game.test.js   — 82 Vitest unit tests
+sw.js            — Service worker with CSP header injection + offline fallback
+index.html       — Entry point with CSP meta tag + SRI-verified CDN script
+```
+
+All source files attach their exports to `window` — no bundler, no module system. Load order matters: `init.js` → `icons.js` → `powerups.js` → `characters.js` → `audio.js` → `game.js`.
+
 ## Security
 
 - **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
@@ -23,6 +40,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
 - **Score integrity** — High scores validated against checksums to detect tampering
 - **SW hardening** — Service worker validates response origins, handles network failures gracefully
+- **Race condition guards** — `gameOverRef` prevents input after time-up; `transitioningRef` prevents double-fire on simultaneous timer/completion events
 
 ## Tests
 
@@ -37,12 +55,13 @@ npm test
 - **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
 - **Vanilla JS** — No build step, no framework. Shared utilities (`createButton`, `drawDarkGridBg`, `UI_FONT`, `getStreakLevel`, `getAdlibTier`, `scanRuns`) keep scene and game logic DRY
-- **CDN** — Phaser loaded from jsDelivr with integrity verification
 - **Vitest** — Unit testing (dev dependency)
 
 ## Run Locally
 
 ```bash
+npm run dev
+# or
 npx serve . -l 3333
 ```
 
