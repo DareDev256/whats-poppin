@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] — 2026-03-21
+
+### Added
+- **Sound toggle** — persistent mute/unmute button on both the title screen and in-game HUD (left of hint button). Uses `AudioEngine.toggleMute()` to zero/restore master gain. Mute preference stored in SafeStorage, restored across sessions via `restoreMuteState()`
+- **Score sharing** — "SHARE SCORE" button on the Game Over screen generates a formatted text score card with final score, best streak (with tier label), moves, avg/move, and game mode. Uses Web Share API on mobile, falls back to Clipboard API on desktop. Animated toast notification confirms the action
+- **3 new procedural icons** — `Icons.sound()` (speaker with sound waves), `Icons.soundOff()` (speaker with red X), `Icons.share()` (upload/export arrow with box)
+- **Game mode passthrough** — Game Over screen now receives the current game mode and "PLAY AGAIN" restarts in the same mode (was hardcoded to timed)
+
 ## [0.4.0] — 2026-03-21
 
 ### Added

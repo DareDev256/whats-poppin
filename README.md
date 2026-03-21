@@ -10,6 +10,8 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen
+- **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
+- **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
 - **Two modes** — Timed (90s) and Zen (no timer)
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -21,9 +23,9 @@ src/
   init.js        — SafeStorage (tamper-resistant localStorage) + SW registration
   game.js        — Grid engine, 6 Phaser scenes, hint system, shared helpers (scanRuns, createButton, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
-  audio.js       — AudioEngine — fully synthesized sound via Web Audio API
+  audio.js       — AudioEngine — fully synthesized sound via Web Audio API, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
-  icons.js       — Icons class — SVG-style icon system replacing emoji
+  icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, etc.)
   game.test.js   — 82 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script

@@ -340,6 +340,22 @@ class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
+    // ---- MUTE TOGGLE (bottom-right) ----
+    this.drawMuteBtn = (muted) => {
+      if (this.muteIconGfx) this.muteIconGfx.destroy();
+      this.muteIconGfx = muted
+        ? Icons.soundOff(this, width - 30, height * 0.93, 18, 0x666666)
+        : Icons.sound(this, width - 30, height * 0.93, 18, 0x888888);
+    };
+    this.drawMuteBtn(window.audioEngine.muted);
+    const muteHit = this.add.rectangle(width - 30, height * 0.93, 36, 36).setInteractive().setAlpha(0.001);
+    muteHit.on('pointerdown', () => {
+      window.audioEngine.init();
+      window.audioEngine.resume();
+      const muted = window.audioEngine.toggleMute();
+      this.drawMuteBtn(muted);
+    });
+
     // Credits
     this.add.text(width / 2, height * 0.93, 'by DareDev256', {
       fontSize: '12px',
@@ -351,6 +367,8 @@ class TitleScene extends Phaser.Scene {
     this.input.once('pointerdown', () => {
       window.audioEngine.init();
       window.audioEngine.resume();
+      window.audioEngine.restoreMuteState();
+      this.drawMuteBtn(window.audioEngine.muted);
     });
   }
 
@@ -364,7 +382,7 @@ class GameOverScene extends Phaser.Scene {
 
   create(data) {
     const { width, height } = this.scale;
-    const { score, bestStreak, moves, isNewHigh } = data;
+    const { score, bestStreak, moves, isNewHigh, mode } = data;
 
     // Background
     const bg = this.add.graphics();
@@ -471,14 +489,19 @@ class GameOverScene extends Phaser.Scene {
     }
 
     // Buttons
-    const btnY1 = height * 0.80;
+    const btnY1 = height * 0.78;
     const btnW = width - 80;
     createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 42,
       text: 'PLAY AGAIN', color: '#2ecc71',
       iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
-      callback: () => this.scene.start('GameScene', { mode: 'timed' }),
+      callback: () => this.scene.start('GameScene', { mode: mode || 'timed' }),
     });
-    createButton(this, { x: width / 2, y: btnY1 + 55, width: btnW, height: 42,
+    createButton(this, { x: width / 2, y: btnY1 + 50, width: btnW, height: 42,
+      text: 'SHARE SCORE', color: '#3498db',
+      iconFn: (s, bx, by) => Icons.share(s, bx, by, 14, 0x3498db),
+      callback: () => this.shareScore(score, bestStreak, moves, mode),
+    });
+    createButton(this, { x: width / 2, y: btnY1 + 100, width: btnW, height: 42,
       text: 'MENU', color: '#aaaaaa',
       iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
       callback: () => this.scene.start('TitleScene'),
@@ -508,6 +531,53 @@ class GameOverScene extends Phaser.Scene {
     }
   }
 
+  shareScore(score, bestStreak, moves, mode) {
+    const tierLevel = getStreakLevel(bestStreak);
+    const tierLabel = tierLevel ? ` — ${tierLevel.label}` : '';
+    const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
+    const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
+
+    const card = [
+      `WHAT'S POPPIN`,
+      `━━━━━━━━━━━━━━━━━`,
+      `Score: ${score.toLocaleString()}`,
+      `Best Streak: ${bestStreak}x${tierLabel}`,
+      `Moves: ${moves}  |  Avg: ${avgPerMove}/move`,
+      `Mode: ${modeLabel}`,
+      `━━━━━━━━━━━━━━━━━`,
+      `#WhatsPoppin`,
+    ].join('\n');
+
+    // Try Web Share API first (mobile), fall back to clipboard
+    if (navigator.share) {
+      navigator.share({ title: "What's Poppin Score", text: card }).catch(() => {});
+      this.showToast('Shared!');
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(card).then(
+        () => this.showToast('Copied to clipboard!'),
+        () => this.showToast('Could not copy')
+      );
+    } else {
+      this.showToast('Sharing not available');
+    }
+  }
+
+  showToast(message) {
+    const { width, height } = this.scale;
+    const bg = this.add.graphics().setDepth(60);
+    bg.fillStyle(0x2ecc71, 0.9);
+    bg.fillRoundedRect(width / 2 - 100, height - 50, 200, 32, 8);
+    const text = this.add.text(width / 2, height - 34, message, {
+      fontSize: '14px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(61);
+
+    this.tweens.add({
+      targets: [bg, text], alpha: 0, y: '-=20',
+      duration: 600, delay: 1200, ease: 'Quad.easeIn',
+      onComplete: () => { bg.destroy(); text.destroy(); },
+    });
+  }
 }
 
 // =============================================================
@@ -988,6 +1058,32 @@ class GameScene extends Phaser.Scene {
     const pauseHit = this.add.rectangle(pauseBtnX, pauseBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(42);
     pauseHit.on('pointerdown', () => this.togglePause());
 
+    // ---- MUTE BUTTON (left of hint) ----
+    const muteBtnX = pauseBtnX - (pauseBtnSize + 8) * 2;
+    const muteBtnY = pauseBtnY;
+
+    this.muteBtnBg = this.add.graphics();
+    this.muteBtnBg.fillStyle(0x1a1a2e, 0.8);
+    this.muteBtnBg.fillRoundedRect(muteBtnX - pauseBtnSize / 2, muteBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
+    this.muteBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
+    this.muteBtnBg.strokeRoundedRect(muteBtnX - pauseBtnSize / 2, muteBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
+    this.muteBtnBg.setDepth(40);
+
+    this.drawMuteIcon = (muted) => {
+      if (this.muteIconGfx) this.muteIconGfx.destroy();
+      this.muteIconGfx = muted
+        ? Icons.soundOff(this, muteBtnX, muteBtnY, 18, 0x666666)
+        : Icons.sound(this, muteBtnX, muteBtnY, 18, 0xaaaaaa);
+      this.muteIconGfx.setDepth(41);
+    };
+    this.drawMuteIcon(window.audioEngine.muted);
+
+    const muteHit = this.add.rectangle(muteBtnX, muteBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(43);
+    muteHit.on('pointerdown', () => {
+      const muted = window.audioEngine.toggleMute();
+      this.drawMuteIcon(muted);
+    });
+
     // ---- HINT BUTTON (left of pause) ----
     this.maxHints = this.gameMode === 'zen' ? Infinity : 3;
     const hintBtnX = pauseBtnX - pauseBtnSize - 8;
@@ -1286,6 +1382,7 @@ class GameScene extends Phaser.Scene {
         bestStreak: this.bestStreak,
         moves: this.moveCount,
         isNewHigh,
+        mode: this.gameMode,
       });
     });
   }

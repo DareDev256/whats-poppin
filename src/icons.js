@@ -203,6 +203,53 @@ class Icons {
     g.fillRect(x - r * 0.5, y + size * 0.18, r, size * 0.15);
     return g;
   }
+  // Speaker icon (sound on)
+  static sound(scene, x, y, size = 16, color = 0xffffff) {
+    const g = scene.add.graphics();
+    const s = size * 0.3;
+    // Speaker body
+    g.fillStyle(color, 0.9);
+    g.fillRect(x - s * 0.6, y - s * 0.4, s * 0.5, s * 0.8);
+    g.fillTriangle(x - s * 0.1, y - s * 0.4, x + s * 0.6, y - s * 0.9, x + s * 0.6, y + s * 0.9);
+    g.fillTriangle(x - s * 0.1, y + s * 0.4, x + s * 0.6, y - s * 0.9, x + s * 0.6, y + s * 0.9);
+    // Sound waves
+    g.lineStyle(1.5, color, 0.7);
+    g.beginPath(); g.arc(x + s * 0.8, y, s * 0.5, -0.6, 0.6, false); g.strokePath();
+    g.beginPath(); g.arc(x + s * 0.8, y, s * 0.9, -0.7, 0.7, false); g.strokePath();
+    return g;
+  }
+
+  // Speaker muted icon (sound off)
+  static soundOff(scene, x, y, size = 16, color = 0xffffff) {
+    const g = scene.add.graphics();
+    const s = size * 0.3;
+    // Speaker body (dimmed)
+    g.fillStyle(color, 0.5);
+    g.fillRect(x - s * 0.6, y - s * 0.4, s * 0.5, s * 0.8);
+    g.fillTriangle(x - s * 0.1, y - s * 0.4, x + s * 0.6, y - s * 0.9, x + s * 0.6, y + s * 0.9);
+    g.fillTriangle(x - s * 0.1, y + s * 0.4, x + s * 0.6, y - s * 0.9, x + s * 0.6, y + s * 0.9);
+    // X mark
+    g.lineStyle(2, 0xe74c3c, 0.9);
+    g.lineBetween(x + s * 0.6, y - s * 0.5, x + s * 1.4, y + s * 0.5);
+    g.lineBetween(x + s * 1.4, y - s * 0.5, x + s * 0.6, y + s * 0.5);
+    return g;
+  }
+
+  // Share / export icon
+  static share(scene, x, y, size = 16, color = 0xffffff) {
+    const g = scene.add.graphics();
+    g.lineStyle(2, color, 0.9);
+    const s = size * 0.35;
+    // Arrow pointing up-right
+    g.lineBetween(x, y + s, x, y - s * 0.5);
+    g.lineBetween(x, y - s * 0.5, x + s * 0.6, y);
+    g.lineBetween(x, y - s * 0.5, x - s * 0.6, y);
+    // Box bottom
+    g.lineBetween(x - s, y + s * 0.2, x - s, y + s);
+    g.lineBetween(x - s, y + s, x + s, y + s);
+    g.lineBetween(x + s, y + s, x + s, y + s * 0.2);
+    return g;
+  }
 }
 
 window.Icons = Icons;

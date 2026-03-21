@@ -9,6 +9,7 @@ class AudioEngine {
     this.initialized = false;
     this.bgPlaying = false;
     this.bgNodes = [];
+    this.muted = false;
 
     // Pentatonic scale for melodic pop sounds — always sounds good
     // D minor pentatonic for that moody, hip-hop feel
@@ -40,6 +41,28 @@ class AudioEngine {
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
+    }
+  }
+
+  /** Toggle mute on/off. Persists preference via SafeStorage. */
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.masterGain) {
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.6, this.ctx.currentTime);
+    }
+    if (typeof SafeStorage !== 'undefined') {
+      SafeStorage.set('whatspoppin_muted', this.muted ? '1' : '0');
+    }
+    return this.muted;
+  }
+
+  /** Restore mute state from SafeStorage after init. */
+  restoreMuteState() {
+    if (typeof SafeStorage !== 'undefined') {
+      this.muted = SafeStorage.get('whatspoppin_muted', '0') === '1';
+      if (this.muted && this.masterGain) {
+        this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+      }
     }
   }
 
