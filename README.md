@@ -16,8 +16,8 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ## Security
 
 - **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
-- **CSP** — Content-Security-Policy with zero `unsafe-inline` (scripts and styles), `object-src 'none'`, `upgrade-insecure-requests`, `base-uri`/`form-action`/`frame-ancestors` lockdown
-- **SW CSP enforcement** — All SW-served responses (cached + offline) get CSP and security headers injected — no unprotected responses
+- **CSP** — Content-Security-Policy with zero `unsafe-inline` — scripts load from `'self'` + CDN, styles from external `src/styles.css` only. Locked down with `base-uri`/`form-action`/`frame-ancestors`
+- **SW CSP enforcement** — All SW-served responses get CSP and security headers injected. Offline fallback uses a minimal `default-src 'none'` policy scoped to its synthesized response
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
 - **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums

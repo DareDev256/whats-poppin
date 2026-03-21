@@ -1,11 +1,11 @@
 // Service Worker for offline play
-const CACHE_NAME = 'whatspoppin-v4';
+const CACHE_NAME = 'whatspoppin-v5';
 
 // Canonical CSP — applied to all synthesized responses
 const CSP_POLICY = [
   "default-src 'self'",
   "script-src 'self' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self'",
   "img-src 'self' data: blob:",
   "connect-src 'self'",
   "font-src 'self'",
@@ -16,9 +16,20 @@ const CSP_POLICY = [
   "frame-ancestors 'none'",
 ].join('; ');
 
+// Relaxed CSP for synthesized offline page (needs inline styles, no external sheets available)
+const OFFLINE_CSP = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 const ASSETS = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/src/styles.css',
   '/src/init.js',
   '/src/game.js',
   '/src/audio.js',
@@ -64,7 +75,7 @@ self.addEventListener('fetch', (event) => {
             {
               headers: {
                 'Content-Type': 'text/html; charset=UTF-8',
-                'Content-Security-Policy': CSP_POLICY,
+                'Content-Security-Policy': OFFLINE_CSP,
                 'X-Content-Type-Options': 'nosniff',
               },
             }

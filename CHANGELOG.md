@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3] — 2026-03-21
+
+### Security
+- Extracted inline `<style>` to external `src/styles.css` — removes last `'unsafe-inline'` from CSP (`style-src 'self'`), closing CSS injection vector
+- Offline fallback page now uses a minimal `default-src 'none'` CSP scoped to its own synthesized response, preventing privilege escalation from the relaxed inline style allowance
+- Added `manifest.json` and `src/styles.css` to service worker cache — PWA manifest now works offline
+- Bumped service worker cache to `whatspoppin-v5` to invalidate stale caches
+
 ## [0.3.2] — 2026-03-20
 
 ### Changed
