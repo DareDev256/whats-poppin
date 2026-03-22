@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4] — 2026-03-22
+
+### Changed
+- Decomposed `processMatches()` (137-line god method) into three focused methods: `calculateMatchScore()` for pure scoring logic, `applyMatchFeedback()` for sensory feedback (sound, shake, flash, popup, hype bar), and `startCascadeCycle()` for the recursive drop → refill → re-check loop
+- `processMatches()` now reads as a clean orchestrator — each responsibility is independently readable and modifiable
+- No behavioral changes — all 82 tests pass unchanged
+
 ## [0.3.3] — 2026-03-21
 
 ### Security

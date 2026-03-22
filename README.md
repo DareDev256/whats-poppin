@@ -36,7 +36,7 @@ npm test
 
 - **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
-- **Vanilla JS** — No build step, no framework. Shared UI utilities (`createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY
+- **Vanilla JS** — No build step, no framework. Shared UI utilities (`createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY. Core game loop decomposed into focused methods (`calculateMatchScore`, `applyMatchFeedback`, `startCascadeCycle`)
 - **CDN** — Phaser loaded from jsDelivr with integrity verification
 - **Vitest** — Unit testing (dev dependency)
 

@@ -1543,35 +1543,51 @@ class GameScene extends Phaser.Scene {
       }
     });
 
-    // Score
+    // Score + feedback + cascade
+    const points = this.calculateMatchScore(totalPopped, powerUpsToActivate.length);
+    const anchor = matchGroups[0]?.[0] ?? null;
+    this.applyMatchFeedback(points, this.streak, anchor);
+    this.startCascadeCycle();
+  }
+
+  // -----------------------------------------------------------
+  // SCORING — Pure calculation, no side effects
+  // -----------------------------------------------------------
+  calculateMatchScore(totalPopped, powerUpsActivated) {
     const baseScore = totalPopped * 10;
     const streakMultiplier = Math.min(this.streak, 10);
     const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
-    const powerUpBonus = powerUpsToActivate.length * 50;
+    const powerUpBonus = powerUpsActivated * 50;
     const points = (baseScore + sizeBonus + powerUpBonus) * streakMultiplier;
     this.score += points;
     this.scoreText.setText(`SCORE: ${this.score.toLocaleString()}`);
+    return points;
+  }
 
-    // Score popup
-    if (matchGroups[0] && matchGroups[0][0]) {
-      const first = matchGroups[0][0];
-      this.showScorePopup(first.x, first.y, `+${points}`, this.streak);
+  // -----------------------------------------------------------
+  // MATCH FEEDBACK — Sound, shake, flash, popup, hype bar
+  // -----------------------------------------------------------
+  applyMatchFeedback(points, streak, anchorBubble) {
+    if (anchorBubble) {
+      this.showScorePopup(anchorBubble.x, anchorBubble.y, `+${points}`, streak);
     }
 
-    // Streak sound + visual
-    window.audioEngine.playStreakHit(this.streak);
-    const shakeIntensity = Math.min(0.003 + this.streak * 0.002, 0.02);
-    this.cameras.main.shake(120 + this.streak * 20, shakeIntensity);
+    window.audioEngine.playStreakHit(streak);
+    const shakeIntensity = Math.min(0.003 + streak * 0.002, 0.02);
+    this.cameras.main.shake(120 + streak * 20, shakeIntensity);
 
-    // Full-screen flash on 8+ streak
-    if (this.streak >= 8) {
-      this.screenFlash(this.streak >= 12 ? 0x9b59b6 : 0xe74c3c);
+    if (streak >= 8) {
+      this.screenFlash(streak >= 12 ? 0x9b59b6 : 0xe74c3c);
     }
 
     this.updateStreakUI();
     this.triggerHypeBar();
+  }
 
-    // Drop + refill cycle
+  // -----------------------------------------------------------
+  // CASCADE CYCLE — Drop → refill → re-check (recursive)
+  // -----------------------------------------------------------
+  startCascadeCycle() {
     this.time.delayedCall(300, () => {
       this.dropBubbles();
       this.time.delayedCall(350, () => {
