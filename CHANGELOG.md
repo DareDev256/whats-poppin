@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0] — 2026-03-23
+
+### Added
+- Career Stats system — persistent cross-session stat tracking (games played, total score, total pops, best score, best streak) using checksummed SafeStorage
+- Stats Scene — dedicated dashboard with 2×2 stat grid, lifetime score bar, per-game averages, and highest streak tier with character display
+- Career Stats button on title screen (appears after first game) showing games played and total pops
+- Session pop tracking in GameScene — accumulates pops across all matches and power-up activations
+- Career data passed to GameOverScene for future integration (new records, career totals)
+
 ## [0.3.5] — 2026-03-23
 
 ### Added

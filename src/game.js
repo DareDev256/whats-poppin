@@ -42,6 +42,39 @@ const ADLIBS = {
 const UI_FONT = '"Segoe UI", system-ui, sans-serif';
 
 // =============================================================
+// CAREER STATS — Cross-session stat tracking with SafeStorage
+// =============================================================
+const CareerStats = {
+  _key: 'whatspoppin_career',
+  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  _storage: SafeStorage,
+
+  load() {
+    const raw = this._storage.get(this._key, null);
+    if (!raw) return { ...this._defaults };
+    try {
+      const parsed = JSON.parse(raw);
+      return { ...this._defaults, ...parsed };
+    } catch (_) { return { ...this._defaults }; }
+  },
+
+  record(gameData) {
+    const stats = this.load();
+    stats.gamesPlayed++;
+    stats.totalScore += gameData.score;
+    stats.totalPops += gameData.pops;
+    const newRecords = {
+      streak: gameData.bestStreak > stats.bestStreak,
+      score: gameData.score > stats.bestScore,
+    };
+    stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
+    stats.bestScore = Math.max(stats.bestScore, gameData.score);
+    this._storage.set(this._key, JSON.stringify(stats));
+    return { stats, newRecords };
+  },
+};
+
+// =============================================================
 // SHARED UI UTILITIES
 // =============================================================
 
@@ -264,9 +297,20 @@ class TitleScene extends Phaser.Scene {
       callback: () => this.scene.start('TipsScene'),
     });
 
+    // Career Stats button
+    const career = CareerStats.load();
+    if (career.gamesPlayed > 0) {
+      createButton(this, { x: width / 2, y: btnY + 240, width: btnWidth, height: btnHeight, radius: 12,
+        text: 'CAREER STATS', subtext: `${career.gamesPlayed} games — ${career.totalPops.toLocaleString()} pops`,
+        iconFn: (s, bx, by) => Icons.crown(s, bx, by, 18, 0xffffff),
+        callback: () => this.scene.start('StatsScene'),
+      });
+    }
+
     // First-time tutorial check
     if (!SafeStorage.get('whatspoppin_played', null)) {
-      createButton(this, { x: width / 2, y: btnY + 240, width: btnWidth, height: btnHeight, radius: 12,
+      const tutY = career.gamesPlayed > 0 ? btnY + 320 : btnY + 240;
+      createButton(this, { x: width / 2, y: tutY, width: btnWidth, height: btnHeight, radius: 12,
         text: 'TUTORIAL', subtext: 'Learn the basics step by step',
         callback: () => this.scene.start('TutorialScene'),
       });
@@ -766,6 +810,145 @@ class TipsScene extends Phaser.Scene {
 }
 
 // =============================================================
+// STATS SCENE — Career stats dashboard
+// =============================================================
+class StatsScene extends Phaser.Scene {
+  constructor() { super({ key: 'StatsScene' }); }
+
+  create() {
+    const { width, height } = this.scale;
+    const stats = CareerStats.load();
+    const bg = this.add.graphics();
+    drawDarkGridBg(this);
+
+    // Title
+    this.add.text(width / 2, 30, 'CAREER STATS', {
+      fontSize: '28px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    // Stat cards
+    const cardX = 15;
+    const cardW = width - 30;
+
+    // — Main stats grid (2×2) —
+    const gridY = 60;
+    const cellW = (cardW - 8) / 2;
+    const cellH = 72;
+
+    const statCells = [
+      { label: 'GAMES PLAYED', value: stats.gamesPlayed.toLocaleString(), color: '#3498db' },
+      { label: 'TOTAL POPS', value: stats.totalPops.toLocaleString(), color: '#e74c3c' },
+      { label: 'BEST SCORE', value: stats.bestScore.toLocaleString(), color: '#f1c40f' },
+      { label: 'BEST STREAK', value: `${stats.bestStreak}x`, color: '#9b59b6' },
+    ];
+
+    statCells.forEach((cell, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const cx = cardX + col * (cellW + 8);
+      const cy = gridY + row * (cellH + 8);
+
+      bg.fillStyle(0x12121f, 0.9);
+      bg.fillRoundedRect(cx, cy, cellW, cellH, 10);
+      bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(cell.color).color, 0.3);
+      bg.strokeRoundedRect(cx, cy, cellW, cellH, 10);
+
+      this.add.text(cx + cellW / 2, cy + 18, cell.label, {
+        fontSize: '10px', fontFamily: UI_FONT,
+        fontStyle: 'bold', color: '#666666', align: 'center',
+      }).setOrigin(0.5);
+
+      this.add.text(cx + cellW / 2, cy + 48, cell.value, {
+        fontSize: '28px', fontFamily: UI_FONT,
+        fontStyle: 'bold', color: cell.color,
+      }).setOrigin(0.5);
+    });
+
+    // — Lifetime totals bar —
+    const barY = gridY + 2 * (cellH + 8) + 8;
+    bg.fillStyle(0x12121f, 0.9);
+    bg.fillRoundedRect(cardX, barY, cardW, 52, 10);
+    bg.lineStyle(1, 0x2ecc71, 0.3);
+    bg.strokeRoundedRect(cardX, barY, cardW, 52, 10);
+
+    this.add.text(width / 2, barY + 14, 'LIFETIME SCORE', {
+      fontSize: '10px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#666666',
+    }).setOrigin(0.5);
+
+    this.add.text(width / 2, barY + 36, stats.totalScore.toLocaleString(), {
+      fontSize: '22px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#2ecc71',
+    }).setOrigin(0.5);
+
+    // — Averages section —
+    const avgY = barY + 68;
+    bg.fillStyle(0x12121f, 0.9);
+    bg.fillRoundedRect(cardX, avgY, cardW, 58, 10);
+    bg.lineStyle(1, 0x3a3a5e, 0.3);
+    bg.strokeRoundedRect(cardX, avgY, cardW, 58, 10);
+
+    this.add.text(width / 2, avgY + 12, 'AVERAGES', {
+      fontSize: '10px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#555555',
+    }).setOrigin(0.5);
+
+    const avgScore = stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0;
+    const avgPops = stats.gamesPlayed > 0 ? Math.round(stats.totalPops / stats.gamesPlayed) : 0;
+
+    this.add.text(width * 0.3, avgY + 38, `${avgScore.toLocaleString()}\nper game`, {
+      fontSize: '14px', fontFamily: UI_FONT,
+      color: '#aaaaaa', align: 'center',
+    }).setOrigin(0.5);
+
+    this.add.text(width * 0.7, avgY + 38, `${avgPops.toLocaleString()}\npops/game`, {
+      fontSize: '14px', fontFamily: UI_FONT,
+      color: '#aaaaaa', align: 'center',
+    }).setOrigin(0.5);
+
+    // — Streak tier unlocked —
+    const tierY = avgY + 75;
+    const tierLevel = STREAK_LEVELS.filter(l => stats.bestStreak >= l.min).pop();
+    if (tierLevel && window.characters) {
+      const char = window.characters[tierLevel.char];
+      if (char) {
+        bg.fillStyle(0x12121f, 0.9);
+        bg.fillRoundedRect(cardX, tierY, cardW, 80, 10);
+        bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(tierLevel.color).color, 0.3);
+        bg.strokeRoundedRect(cardX, tierY, cardW, 80, 10);
+
+        this.add.text(cardX + 12, tierY + 10, 'HIGHEST TIER', {
+          fontSize: '10px', fontFamily: UI_FONT,
+          fontStyle: 'bold', color: '#555555',
+        });
+
+        this.add.text(cardX + 12, tierY + 30, `${tierLevel.label}`, {
+          fontSize: '22px', fontFamily: UI_FONT,
+          fontStyle: 'bold', color: tierLevel.color,
+        });
+
+        this.add.text(cardX + 12, tierY + 58, `${char.name} — ${char.title}`, {
+          fontSize: '12px', fontFamily: UI_FONT,
+          fontStyle: 'italic', color: tierLevel.color,
+        });
+
+        const charGfx = this.add.graphics();
+        char.draw(charGfx, width - 55, tierY + 40, 0.7);
+      }
+    }
+
+    // Back button
+    const backY = height - 40;
+    createButton(this, { x: width / 2, y: backY, width: 180, height: 42,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('TitleScene'),
+    });
+  }
+}
+
+// =============================================================
 // GAME SCENE — Core gameplay
 // =============================================================
 class GameScene extends Phaser.Scene {
@@ -782,6 +965,7 @@ class GameScene extends Phaser.Scene {
     this.isProcessing = false;
     this.selected = null;
     this.moveCount = 0;
+    this.totalPops = 0;
     this.timeLeft = GAME_TIME;
     this.gameOver = false;
     this.isPaused = false;
@@ -1149,6 +1333,13 @@ class GameScene extends Phaser.Scene {
       SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
     }
 
+    // Record career stats
+    const { stats: career, newRecords } = CareerStats.record({
+      score: this.score,
+      pops: this.totalPops,
+      bestStreak: this.bestStreak,
+    });
+
     // Transition
     this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', {
@@ -1156,6 +1347,8 @@ class GameScene extends Phaser.Scene {
         bestStreak: this.bestStreak,
         moves: this.moveCount,
         isNewHigh,
+        career,
+        newRecords,
       });
     });
   }
@@ -1542,6 +1735,9 @@ class GameScene extends Phaser.Scene {
         });
       }
     });
+
+    // Accumulate session pops for career stats
+    this.totalPops += totalPopped;
 
     // Score + feedback + cascade
     const points = this.calculateMatchScore(totalPopped, powerUpsToActivate.length);
@@ -1974,7 +2170,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, TutorialScene, TipsScene, GameScene, GameOverScene],
+  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, GameScene, GameOverScene],
 };
 
 const game = new Phaser.Game(config);

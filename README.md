@@ -10,6 +10,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
 - **Two modes** — Timed (90s) and Zen (no timer)
+- **Career stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
 
