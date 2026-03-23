@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.2] — 2026-03-23
+
+### Security
+- **CSP: add `object-src 'none'`** — Blocks plugin/object loading (Flash, Java applets) from same origin. Previously relied on `default-src 'self'` fallback which was too permissive
+- **CSP: add `upgrade-insecure-requests`** — Forces HTTPS for all subresource loads. README documented this directive but it was missing from both `index.html` and `sw.js`
+- **Add `X-Frame-Options: DENY`** — Clickjacking protection for legacy browsers that don't support CSP `frame-ancestors`. Added as both HTML meta tag and SW response header
+- **SW: harden all cached responses** — Previously, only the offline fallback and 503 error responses received security headers. Cached responses from `caches.match()` were returned raw without CSP, `X-Content-Type-Options`, or `Referrer-Policy`. Now every same-origin response served through the SW gets the full security header set via `hardenResponse()`. Cross-origin (opaque) CDN responses are exempt to preserve SRI verification
+- **SW: add `Referrer-Policy: no-referrer`** — Injected on all SW-served responses, matching the `<meta>` tag in `index.html`
+- **SW cache version bump** — `whatspoppin-v4` → `whatspoppin-v5` to force existing installations to pick up the hardened SW
+
 ## [0.5.1] — 2026-03-23
 
 ### Fixed

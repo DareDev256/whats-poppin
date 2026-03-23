@@ -1,7 +1,7 @@
 // Service Worker for offline play
-const CACHE_NAME = 'whatspoppin-v4';
+const CACHE_NAME = 'whatspoppin-v5';
 
-// Canonical CSP — applied to all synthesized responses
+// Canonical CSP — applied to all served responses (cached, synthesized, and offline)
 const CSP_POLICY = [
   "default-src 'self'",
   "script-src 'self' https://cdn.jsdelivr.net",
@@ -11,10 +11,41 @@ const CSP_POLICY = [
   "font-src 'self'",
   "media-src 'self' blob:",
   "worker-src 'self'",
+  "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
 ].join('; ');
+
+// Security headers injected on every same-origin response
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': CSP_POLICY,
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+};
+
+/**
+ * Clone a response with security headers injected.
+ * CDN responses (cross-origin) are returned as-is since
+ * modifying opaque responses would break SRI verification.
+ */
+function hardenResponse(response) {
+  // Don't modify cross-origin (opaque) responses — breaks SRI
+  if (response.type === 'opaque' || response.type === 'opaqueredirect') {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 const ASSETS = [
   '/',
@@ -38,7 +69,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+      if (cached) return hardenResponse(cached);
       return fetch(event.request).then((response) => {
         // Only cache same-origin or approved CDN responses
         if (response && response.status === 200) {
@@ -48,9 +79,9 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
         }
-        return response;
+        return hardenResponse(response);
       }).catch(() => {
-        // Network failure with no cache — return a CSP-protected offline response
+        // Network failure with no cache — return a hardened offline response
         if (event.request.destination === 'document') {
           return new Response(
             '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
@@ -64,13 +95,12 @@ self.addEventListener('fetch', (event) => {
             {
               headers: {
                 'Content-Type': 'text/html; charset=UTF-8',
-                'Content-Security-Policy': CSP_POLICY,
-                'X-Content-Type-Options': 'nosniff',
+                ...SECURITY_HEADERS,
               },
             }
           );
         }
-        return new Response('', { status: 503, headers: { 'X-Content-Type-Options': 'nosniff' } });
+        return new Response('', { status: 503, headers: SECURITY_HEADERS });
       });
     })
   );
