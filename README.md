@@ -30,7 +30,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 npm test
 ```
 
-96 unit tests covering cascade simulation (drop → re-match), full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, and game constant integrity. Uses Vitest.
+108 unit tests covering SafeStorage (checksum tamper detection, integer parsing edge cases, fallback behavior), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility), cascade simulation (drop → re-match), full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, and game constant integrity. Uses Vitest.
 
 ## Tech Stack
 

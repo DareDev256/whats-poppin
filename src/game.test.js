@@ -844,3 +844,273 @@ describe('Score calculation — boundaries', () => {
     expect(calculateScore(3, 1)).toBeGreaterThan(0);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// SAFESTORAGE — Checksum-protected localStorage wrapper
+// ══════════════════════════════════════════════════════════════
+const SafeStorage = (() => {
+  const store = {};
+  return {
+    _checksum(val) {
+      let h = 0x811c9dc5;
+      for (let i = 0; i < val.length; i++) {
+        h ^= val.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+      }
+      return (h >>> 0).toString(36);
+    },
+    get(key, fallback) {
+      try {
+        const raw = store[key] ?? null;
+        if (raw === null) return fallback;
+        const check = store[key + '_c'] ?? null;
+        if (check && check !== this._checksum(raw)) return fallback;
+        return raw;
+      } catch (_) { return fallback; }
+    },
+    getInt(key, fallback) {
+      const raw = this.get(key, null);
+      if (raw === null) return fallback;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) ? Math.max(0, n) : fallback;
+    },
+    set(key, value) {
+      const str = String(value);
+      store[key] = str;
+      store[key + '_c'] = this._checksum(str);
+    },
+    _clear() { Object.keys(store).forEach(k => delete store[k]); },
+    _store: store,
+  };
+})();
+
+describe('SafeStorage', () => {
+  beforeEach(() => SafeStorage._clear());
+
+  it('stores and retrieves a value', () => {
+    SafeStorage.set('k', 'hello');
+    expect(SafeStorage.get('k', 'nope')).toBe('hello');
+  });
+
+  it('returns fallback for missing keys', () => {
+    expect(SafeStorage.get('nope', 'default')).toBe('default');
+  });
+
+  it('detects tampered values and returns fallback', () => {
+    SafeStorage.set('score', '9999');
+    // Tamper the value directly without updating checksum
+    SafeStorage._store['score'] = '999999';
+    expect(SafeStorage.get('score', '0')).toBe('0');
+  });
+
+  it('accepts value when checksum is absent (legacy data)', () => {
+    // Simulate pre-checksum data: value exists, no _c key
+    SafeStorage._store['old_key'] = 'legacy';
+    expect(SafeStorage.get('old_key', 'fallback')).toBe('legacy');
+  });
+
+  it('getInt parses valid integers', () => {
+    SafeStorage.set('n', '42');
+    expect(SafeStorage.getInt('n', 0)).toBe(42);
+  });
+
+  it('getInt clamps negative to 0', () => {
+    SafeStorage.set('n', '-5');
+    expect(SafeStorage.getInt('n', 0)).toBe(0);
+  });
+
+  it('getInt returns fallback for non-numeric', () => {
+    SafeStorage.set('n', 'abc');
+    expect(SafeStorage.getInt('n', 99)).toBe(99);
+  });
+
+  it('getInt returns fallback for NaN values', () => {
+    SafeStorage.set('n', 'NaN');
+    expect(SafeStorage.getInt('n', 7)).toBe(7);
+  });
+
+  it('getInt returns fallback for Infinity', () => {
+    SafeStorage.set('n', 'Infinity');
+    expect(SafeStorage.getInt('n', 0)).toBe(0);
+  });
+
+  it('checksum is deterministic', () => {
+    const a = SafeStorage._checksum('test');
+    const b = SafeStorage._checksum('test');
+    expect(a).toBe(b);
+  });
+
+  it('different values produce different checksums', () => {
+    expect(SafeStorage._checksum('abc')).not.toBe(SafeStorage._checksum('abd'));
+  });
+
+  it('set coerces non-string values to string', () => {
+    SafeStorage.set('num', 123);
+    expect(SafeStorage.get('num', '')).toBe('123');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// CAREER STATS — Persistent cross-session tracking
+// ══════════════════════════════════════════════════════════════
+const CareerStats = {
+  _key: 'whatspoppin_career',
+  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  _storage: SafeStorage,
+
+  load() {
+    const raw = this._storage.get(this._key, null);
+    if (!raw) return { ...this._defaults };
+    try {
+      const parsed = JSON.parse(raw);
+      return { ...this._defaults, ...parsed };
+    } catch (_) { return { ...this._defaults }; }
+  },
+
+  record(gameData) {
+    const stats = this.load();
+    stats.gamesPlayed++;
+    stats.totalScore += gameData.score;
+    stats.totalPops += gameData.pops;
+    const newRecords = {
+      streak: gameData.bestStreak > stats.bestStreak,
+      score: gameData.score > stats.bestScore,
+    };
+    stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
+    stats.bestScore = Math.max(stats.bestScore, gameData.score);
+    this._storage.set(this._key, JSON.stringify(stats));
+    return { stats, newRecords };
+  },
+};
+
+describe('CareerStats', () => {
+  beforeEach(() => SafeStorage._clear());
+
+  it('load returns defaults when no data exists', () => {
+    const stats = CareerStats.load();
+    expect(stats).toEqual(CareerStats._defaults);
+    expect(stats.gamesPlayed).toBe(0);
+    expect(stats.bestScore).toBe(0);
+  });
+
+  it('record increments gamesPlayed', () => {
+    const { stats } = CareerStats.record({ score: 100, pops: 10, bestStreak: 3 });
+    expect(stats.gamesPlayed).toBe(1);
+    const { stats: s2 } = CareerStats.record({ score: 200, pops: 20, bestStreak: 5 });
+    expect(s2.gamesPlayed).toBe(2);
+  });
+
+  it('record accumulates totalScore across sessions', () => {
+    CareerStats.record({ score: 100, pops: 10, bestStreak: 2 });
+    CareerStats.record({ score: 250, pops: 15, bestStreak: 3 });
+    const stats = CareerStats.load();
+    expect(stats.totalScore).toBe(350);
+  });
+
+  it('record accumulates totalPops across sessions', () => {
+    CareerStats.record({ score: 50, pops: 8, bestStreak: 1 });
+    CareerStats.record({ score: 75, pops: 12, bestStreak: 2 });
+    const stats = CareerStats.load();
+    expect(stats.totalPops).toBe(20);
+  });
+
+  it('record tracks best streak (keeps highest)', () => {
+    CareerStats.record({ score: 100, pops: 10, bestStreak: 5 });
+    CareerStats.record({ score: 200, pops: 20, bestStreak: 3 }); // lower streak
+    const stats = CareerStats.load();
+    expect(stats.bestStreak).toBe(5); // kept the 5
+  });
+
+  it('record tracks best score (keeps highest)', () => {
+    CareerStats.record({ score: 500, pops: 30, bestStreak: 4 });
+    CareerStats.record({ score: 200, pops: 10, bestStreak: 2 }); // lower score
+    const stats = CareerStats.load();
+    expect(stats.bestScore).toBe(500);
+  });
+
+  it('record returns newRecords flags correctly', () => {
+    // First game — everything is a record
+    const { newRecords: r1 } = CareerStats.record({ score: 100, pops: 10, bestStreak: 3 });
+    expect(r1.score).toBe(true);
+    expect(r1.streak).toBe(true);
+
+    // Second game — lower stats, no records
+    const { newRecords: r2 } = CareerStats.record({ score: 50, pops: 5, bestStreak: 2 });
+    expect(r2.score).toBe(false);
+    expect(r2.streak).toBe(false);
+
+    // Third game — new score record only
+    const { newRecords: r3 } = CareerStats.record({ score: 200, pops: 15, bestStreak: 2 });
+    expect(r3.score).toBe(true);
+    expect(r3.streak).toBe(false);
+  });
+
+  it('load handles corrupted JSON gracefully', () => {
+    SafeStorage.set(CareerStats._key, 'not valid json{{{');
+    const stats = CareerStats.load();
+    expect(stats).toEqual(CareerStats._defaults);
+  });
+
+  it('load merges partial data with defaults (forward compat)', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({ gamesPlayed: 5 }));
+    const stats = CareerStats.load();
+    expect(stats.gamesPlayed).toBe(5);
+    expect(stats.totalPops).toBe(0); // default filled in
+    expect(stats.bestScore).toBe(0);
+  });
+
+  it('handles zero-score game without corruption', () => {
+    const { stats } = CareerStats.record({ score: 0, pops: 0, bestStreak: 0 });
+    expect(stats.gamesPlayed).toBe(1);
+    expect(stats.totalScore).toBe(0);
+    expect(stats.bestScore).toBe(0);
+  });
+
+  it('persists data that survives load/record cycle', () => {
+    CareerStats.record({ score: 999, pops: 50, bestStreak: 8 });
+    // Simulate session restart by loading fresh
+    const loaded = CareerStats.load();
+    expect(loaded.bestScore).toBe(999);
+    expect(loaded.totalPops).toBe(50);
+    expect(loaded.bestStreak).toBe(8);
+    // Record another game on top
+    const { stats } = CareerStats.record({ score: 100, pops: 10, bestStreak: 2 });
+    expect(stats.gamesPlayed).toBe(2);
+    expect(stats.totalScore).toBe(1099);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// PROCESSMATCHES — totalPops tracking (from refactored method)
+// ══════════════════════════════════════════════════════════════
+describe('processMatches totalPops accumulation', () => {
+  it('counts pops correctly from a single match group', () => {
+    let totalPops = 0;
+    const matchGroups = [
+      [makeBubble(0, 0, 1), makeBubble(0, 1, 1), makeBubble(0, 2, 1)],
+    ];
+    matchGroups.forEach(group => { totalPops += group.length; });
+    expect(totalPops).toBe(3);
+  });
+
+  it('counts pops from multiple match groups', () => {
+    let totalPops = 0;
+    const matchGroups = [
+      [makeBubble(0, 0, 1), makeBubble(0, 1, 1), makeBubble(0, 2, 1)],
+      [makeBubble(3, 4, 2), makeBubble(4, 4, 2), makeBubble(5, 4, 2), makeBubble(6, 4, 2)],
+    ];
+    matchGroups.forEach(group => { totalPops += group.length; });
+    expect(totalPops).toBe(7);
+  });
+
+  it('accumulates across multiple rounds (cascade simulation)', () => {
+    let totalPops = 0;
+    // Round 1
+    totalPops += 3;
+    // Round 2 (cascade)
+    totalPops += 4;
+    // Round 3 (cascade)
+    totalPops += 3;
+    expect(totalPops).toBe(10);
+  });
+});

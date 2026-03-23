@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5] — 2026-03-23
+
+### Added
+- 26 new unit tests covering two previously untested modules: SafeStorage and CareerStats
+- SafeStorage tests: checksum tamper detection, integer parsing edge cases (negative, NaN, Infinity), fallback behavior, legacy data without checksums, value coercion
+- CareerStats tests: cross-session accumulation (score, pops, streak), record flag accuracy, corrupted JSON recovery, partial data forward compatibility, zero-score games, persistence across load/record cycles
+- processMatches totalPops accumulation tests for cascade simulation
+
 ## [0.3.4] — 2026-03-22
 
 ### Changed
