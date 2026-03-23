@@ -41,7 +41,8 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
 - **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
-- **Score integrity** — High scores validated against checksums to detect tampering
+- **Score integrity** — High scores validated against checksums to detect tampering; NaN/undefined guards on all score paths prevent corrupted writes
+- **Scene data hardening** — GameOverScene validates all incoming data with `Number.isFinite` fallbacks, preventing crashes on undefined game state
 - **SW hardening** — Service worker validates response origins, handles network failures gracefully
 - **Race condition guards** — `gameOverRef` prevents input after time-up; `transitioningRef` prevents double-fire on simultaneous timer/completion events
 

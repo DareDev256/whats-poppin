@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1] — 2026-03-23
+
+### Fixed
+- **Game Over crash** — `GameOverScene.create()` crashed with `TypeError` when receiving undefined data (e.g. scene restart without params, race condition during transition). Destructuring now falls back to safe defaults
+- **Share score crash** — `shareScore()` called `.toLocaleString()` on potentially undefined values; now validates all numeric inputs before formatting
+- **High score NaN guard** — `endGame()` validates `this.score` is finite before comparing/writing to SafeStorage, preventing NaN from corrupting the stored high score
+- **Scene hand-off hardening** — `endGame()` defensively coerces all values passed to GameOverScene, closing the gap between GameScene (which already guarded `data?.mode`) and GameOverScene (which didn't)
+
 ## [0.5.0] — 2026-03-21
 
 ### Added

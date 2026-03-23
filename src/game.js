@@ -382,7 +382,12 @@ class GameOverScene extends Phaser.Scene {
 
   create(data) {
     const { width, height } = this.scale;
-    const { score, bestStreak, moves, isNewHigh, mode } = data;
+    const safe = data || {};
+    const score = Number.isFinite(safe.score) ? safe.score : 0;
+    const bestStreak = Number.isFinite(safe.bestStreak) ? safe.bestStreak : 0;
+    const moves = Number.isFinite(safe.moves) ? safe.moves : 0;
+    const isNewHigh = !!safe.isNewHigh;
+    const mode = safe.mode || 'timed';
 
     // Background
     const bg = this.add.graphics();
@@ -532,17 +537,20 @@ class GameOverScene extends Phaser.Scene {
   }
 
   shareScore(score, bestStreak, moves, mode) {
-    const tierLevel = getStreakLevel(bestStreak);
+    const safeScore = Number.isFinite(score) ? score : 0;
+    const safeStreak = Number.isFinite(bestStreak) ? bestStreak : 0;
+    const safeMoves = Number.isFinite(moves) ? moves : 0;
+    const tierLevel = getStreakLevel(safeStreak);
     const tierLabel = tierLevel ? ` — ${tierLevel.label}` : '';
     const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
-    const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
+    const avgPerMove = safeMoves > 0 ? Math.round(safeScore / safeMoves) : 0;
 
     const card = [
       `WHAT'S POPPIN`,
       `━━━━━━━━━━━━━━━━━`,
-      `Score: ${score.toLocaleString()}`,
-      `Best Streak: ${bestStreak}x${tierLabel}`,
-      `Moves: ${moves}  |  Avg: ${avgPerMove}/move`,
+      `Score: ${safeScore.toLocaleString()}`,
+      `Best Streak: ${safeStreak}x${tierLabel}`,
+      `Moves: ${safeMoves}  |  Avg: ${avgPerMove}/move`,
       `Mode: ${modeLabel}`,
       `━━━━━━━━━━━━━━━━━`,
       `#WhatsPoppin`,
@@ -1370,19 +1378,20 @@ class GameScene extends Phaser.Scene {
     window.audioEngine.playStreakHit(12);
 
     const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
-    const isNewHigh = this.score > highScore;
+    const finalScore = Number.isFinite(this.score) ? this.score : 0;
+    const isNewHigh = finalScore > highScore;
     if (isNewHigh) {
-      SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
+      SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(finalScore)).toString());
     }
 
-    // Transition
+    // Transition — defensively coerce to safe values before scene hand-off
     this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', {
-        score: this.score,
-        bestStreak: this.bestStreak,
-        moves: this.moveCount,
+        score: this.score || 0,
+        bestStreak: this.bestStreak || 0,
+        moves: this.moveCount || 0,
         isNewHigh,
-        mode: this.gameMode,
+        mode: this.gameMode || 'timed',
       });
     });
   }
