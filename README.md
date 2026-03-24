@@ -9,7 +9,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Streak system** — Chain matches for multipliers, unlock characters at 3x/5x/8x/12x
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
-- **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen
+- **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
@@ -27,7 +27,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, etc.)
-  game.test.js   — 82 Vitest unit tests
+  game.test.js   — 91 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
 ```
@@ -49,6 +49,51 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **DNS prefetch control** — Disabled to prevent DNS info leakage to third parties
 - **PWA scope restriction** — Manifest `scope` locks installed PWA to `/`, preventing navigation outside the app boundary
 - **Race condition guards** — `gameOverRef` prevents input after time-up; `transitioningRef` prevents double-fire on simultaneous timer/completion events
+
+## Hint & Auto-Select System
+
+The hint system lives in `src/game.js` on `GameScene` and has two trigger paths:
+
+### Manual Hints (Lightbulb Button)
+
+Tapping the lightbulb icon calls `triggerHint()`. In **Timed mode** each tap costs one of 3 hint charges (displayed as a counter badge). In **Zen mode** hints are unlimited (badge shows `∞`). When charges run out, the counter flashes red and the tap is ignored.
+
+### Auto-Hints (Idle Detection)
+
+A 500ms polling timer tracks `idleTime` — milliseconds since the player's last pointer interaction. When `idleTime` reaches **5 000ms** (5 seconds), `showAutoHint()` fires automatically. Auto-hints are always free and never consume charges.
+
+Any pointer down or bubble swap resets `idleTime` to 0 and clears the active hint, so the system stays out of the way during active play.
+
+### How Moves Are Found
+
+`findHintMove()` scans every cell in the grid, trying each adjacent swap (right, then down). For each candidate swap it:
+
+1. Performs the swap on the data grid (`swapGridData`)
+2. Runs `findAllMatches()` to check for 3+ runs
+3. Reverses the swap immediately
+4. Returns the first pair `{ a: {r, c}, b: {r, c} }` that produces a match, or `null` if the board is deadlocked
+
+Worst case is **O(rows × cols)** — fast enough for the 8×8 grid that it runs inside a 500ms timer callback with no perceptible delay.
+
+### Visual Feedback
+
+When a hint is active, the `update()` loop draws animated rings around the two target bubbles:
+
+- **Gold pulsing glow** — Sine-wave oscillation (`0.5 + 0.5 * sin(time * 0.004)`) drives both opacity (0.3–0.8) and ring radius, creating a breathing effect
+- **Connecting line** — A dashed gold line links the two hint bubbles so the swap direction is obvious
+- Rings clear instantly on the next pointer interaction via `clearHint()`
+
+### State Machine
+
+```
+IDLE ──(5s no input)──▶ AUTO_HINT ──(pointer down)──▶ IDLE
+  │                                                      │
+  └──(tap lightbulb)──▶ MANUAL_HINT ──(pointer down)──▶ IDLE
+                            │
+                      (charges == 0) → flash red, ignore
+```
+
+Key flags: `hintActive` (bool), `hintPair` (cell coords or null), `idleTime` (ms counter), `hintsUsed` / `maxHints` (charge economy).
 
 ## Tests
 

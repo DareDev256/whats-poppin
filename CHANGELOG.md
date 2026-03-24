@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.1] — 2026-03-24
+
+### Added
+- **Hint & Auto-Select deep-dive in README** — New dedicated section documenting the dual-trigger hint system (manual lightbulb + 5s idle auto-select), `findHintMove()` algorithm, charge economy, visual feedback (gold pulsing glow with sine-wave animation), and a state machine diagram showing IDLE → AUTO_HINT / MANUAL_HINT transitions
+
 ## [0.6.0] — 2026-03-24
 
 ### Added
