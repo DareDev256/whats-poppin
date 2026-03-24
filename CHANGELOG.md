@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] — 2026-03-24
+
+### Added
+- **Performance grade system** — Every game ends with a letter grade (S/A/B/C/D/F) based on score and best streak combined. S-grade requires 5000+ score AND 8+ streak — high score alone isn't enough, you need to chain. Grade reveals with a dramatic scale-in animation after the score counts up
+- **S-grade visual flair** — Achieving S-grade triggers a pulsing gold glow ring and breathing scale animation on the grade letter, making it screenshot-worthy
+- **Per-mode best grade persistence** — Best grade earned is stored separately for Timed and Zen modes via SafeStorage. Displayed as compact badges on the title screen below the high score
+- **Grade in share card** — Score sharing now includes your grade and its label (e.g., "Grade: S — SUPREME"), adding social bragging rights
+- **Compact character display on Game Over** — Streak-tier character now renders as a small badge beside the grade instead of a large hero element, keeping the layout clean
+- **9 new unit tests** — Grade threshold logic, streak/score interaction, rank monotonicity, edge cases (high score + low streak, low score + high streak). Total: 91 tests
+
 ## [0.5.2] — 2026-03-23
 
 ### Security

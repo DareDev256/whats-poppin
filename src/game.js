@@ -41,6 +41,22 @@ const ADLIBS = {
 
 const UI_FONT = '"Segoe UI", system-ui, sans-serif';
 
+const GRADES = [
+  { grade: 'S', minScore: 5000, minStreak: 8, color: '#ffd700', label: 'SUPREME' },
+  { grade: 'A', minScore: 3000, minStreak: 5, color: '#2ecc71', label: 'EXCELLENT' },
+  { grade: 'B', minScore: 1500, minStreak: 3, color: '#3498db', label: 'GREAT' },
+  { grade: 'C', minScore: 500,  minStreak: 0, color: '#ff6b35', label: 'DECENT' },
+  { grade: 'D', minScore: 100,  minStreak: 0, color: '#e74c3c', label: 'ROOKIE' },
+];
+
+/** Calculate performance grade from score and best streak. */
+function getGrade(score, bestStreak) {
+  for (const g of GRADES) {
+    if (score >= g.minScore && bestStreak >= g.minStreak) return g;
+  }
+  return { grade: 'F', minScore: 0, minStreak: 0, color: '#666666', label: 'TRY AGAIN' };
+}
+
 // =============================================================
 // SHARED HELPERS
 // =============================================================
@@ -340,6 +356,29 @@ class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
+    // Best grade badges (per mode)
+    const bestGradeTimed = SafeStorage.get('whatspoppin_bestgrade_timed', null);
+    const bestGradeZen = SafeStorage.get('whatspoppin_bestgrade_zen', null);
+    if (bestGradeTimed || bestGradeZen) {
+      let badgeX = width / 2 - 60;
+      const badgeY = height * 0.89;
+      if (bestGradeTimed) {
+        const gInfo = GRADES.find(g => g.grade === bestGradeTimed) || getGrade(0, 0);
+        this.add.text(badgeX, badgeY, `TIMED: ${bestGradeTimed}`, {
+          fontSize: '13px', fontFamily: UI_FONT, fontStyle: 'bold',
+          color: gInfo.color, stroke: '#000000', strokeThickness: 2,
+        }).setOrigin(0.5);
+        badgeX += 70;
+      }
+      if (bestGradeZen) {
+        const gInfo = GRADES.find(g => g.grade === bestGradeZen) || getGrade(0, 0);
+        this.add.text(badgeX, badgeY, `ZEN: ${bestGradeZen}`, {
+          fontSize: '13px', fontFamily: UI_FONT, fontStyle: 'bold',
+          color: gInfo.color, stroke: '#000000', strokeThickness: 2,
+        }).setOrigin(0.5);
+      }
+    }
+
     // ---- MUTE TOGGLE (bottom-right) ----
     this.drawMuteBtn = (muted) => {
       if (this.muteIconGfx) this.muteIconGfx.destroy();
@@ -477,17 +516,71 @@ class GameOverScene extends Phaser.Scene {
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
-    // Streak tier achieved
+    // ---- PERFORMANCE GRADE ----
+    const gradeInfo = getGrade(score, bestStreak);
+    const gradeColor = Phaser.Display.Color.HexStringToColor(gradeInfo.color).color;
+    const gradeY = cardY + cardH + 44;
+
+    // Glow ring behind grade letter
+    const gradeGlow = this.add.graphics().setDepth(8);
+    gradeGlow.fillStyle(gradeColor, 0.06);
+    gradeGlow.fillCircle(width / 2, gradeY, 42);
+    gradeGlow.lineStyle(2, gradeColor, 0.25);
+    gradeGlow.strokeCircle(width / 2, gradeY, 42);
+    gradeGlow.setAlpha(0);
+
+    // Grade letter
+    const gradeLetter = this.add.text(width / 2, gradeY, gradeInfo.grade, {
+      fontSize: '56px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: gradeInfo.color,
+      stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(9).setScale(0);
+
+    // Grade label below
+    const gradeLabel = this.add.text(width / 2, gradeY + 36, gradeInfo.label, {
+      fontSize: '12px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: gradeInfo.color, letterSpacing: 3,
+    }).setOrigin(0.5).setDepth(9).setAlpha(0);
+
+    // Dramatic reveal — scale in with bounce after score counts up
+    this.tweens.add({
+      targets: gradeLetter, scale: 1, duration: 500, delay: 2000,
+      ease: 'Back.easeOut',
+      onStart: () => gradeGlow.setAlpha(1),
+    });
+    this.tweens.add({
+      targets: gradeLabel, alpha: 1, duration: 300, delay: 2300,
+    });
+
+    // S-grade gets pulsing glow
+    if (gradeInfo.grade === 'S') {
+      this.tweens.add({
+        targets: gradeGlow, alpha: 0.4, duration: 800, delay: 2500,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+      this.tweens.add({
+        targets: gradeLetter, scale: 1.06, duration: 1000, delay: 2500,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    }
+
+    // Persist best grade per mode
+    const gradeKey = `whatspoppin_bestgrade_${mode}`;
+    const prevBest = SafeStorage.get(gradeKey, 'F');
+    const gradeRank = 'SABCDF';
+    if (gradeRank.indexOf(gradeInfo.grade) < gradeRank.indexOf(prevBest)) {
+      SafeStorage.set(gradeKey, gradeInfo.grade);
+    }
+
+    // Streak tier character (compact, beside grade)
     const tierLevel = getStreakLevel(bestStreak);
     if (tierLevel && window.characters) {
-      const charKey = tierLevel.char;
-      const char = window.characters[charKey];
+      const char = window.characters[tierLevel.char];
       if (char) {
         const charGfx = this.add.graphics();
-        char.draw(charGfx, width / 2, height * 0.62, 1.2);
-
-        this.add.text(width / 2, height * 0.73, `${char.name} — ${char.title}`, {
-          fontSize: '16px', fontFamily: UI_FONT,
+        char.draw(charGfx, width - 55, gradeY - 8, 0.65);
+        this.add.text(width - 55, gradeY + 30, char.name, {
+          fontSize: '10px', fontFamily: UI_FONT,
           fontStyle: 'italic', color: tierLevel.color,
         }).setOrigin(0.5);
       }
@@ -545,9 +638,11 @@ class GameOverScene extends Phaser.Scene {
     const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
     const avgPerMove = safeMoves > 0 ? Math.round(safeScore / safeMoves) : 0;
 
+    const gradeInfo = getGrade(safeScore, safeStreak);
     const card = [
       `WHAT'S POPPIN`,
       `━━━━━━━━━━━━━━━━━`,
+      `Grade: ${gradeInfo.grade} — ${gradeInfo.label}`,
       `Score: ${safeScore.toLocaleString()}`,
       `Best Streak: ${safeStreak}x${tierLabel}`,
       `Moves: ${safeMoves}  |  Avg: ${avgPerMove}/move`,

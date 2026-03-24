@@ -844,3 +844,78 @@ describe('Score calculation — boundaries', () => {
     expect(calculateScore(3, 1)).toBeGreaterThan(0);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// PERFORMANCE GRADE SYSTEM
+// ══════════════════════════════════════════════════════════════
+const GRADES = [
+  { grade: 'S', minScore: 5000, minStreak: 8 },
+  { grade: 'A', minScore: 3000, minStreak: 5 },
+  { grade: 'B', minScore: 1500, minStreak: 3 },
+  { grade: 'C', minScore: 500,  minStreak: 0 },
+  { grade: 'D', minScore: 100,  minStreak: 0 },
+];
+
+function getGrade(score, bestStreak) {
+  for (const g of GRADES) {
+    if (score >= g.minScore && bestStreak >= g.minStreak) return g;
+  }
+  return { grade: 'F', minScore: 0, minStreak: 0 };
+}
+
+describe('Performance grade system', () => {
+  it('returns S for high score + high streak', () => {
+    expect(getGrade(5000, 8).grade).toBe('S');
+    expect(getGrade(9999, 12).grade).toBe('S');
+  });
+
+  it('returns A for good score + good streak', () => {
+    expect(getGrade(3000, 5).grade).toBe('A');
+    expect(getGrade(4999, 7).grade).toBe('A');
+  });
+
+  it('high score but low streak cannot reach S', () => {
+    expect(getGrade(10000, 7).grade).toBe('A');
+    expect(getGrade(10000, 4).grade).toBe('B');
+  });
+
+  it('high streak but low score drops grade', () => {
+    expect(getGrade(1499, 10).grade).toBe('C');
+    expect(getGrade(499, 10).grade).toBe('D');
+  });
+
+  it('returns B at exact thresholds', () => {
+    expect(getGrade(1500, 3).grade).toBe('B');
+  });
+
+  it('returns C for moderate score, no streak needed', () => {
+    expect(getGrade(500, 0).grade).toBe('C');
+    expect(getGrade(999, 0).grade).toBe('C');
+  });
+
+  it('returns D for low score', () => {
+    expect(getGrade(100, 0).grade).toBe('D');
+  });
+
+  it('returns F for zero score', () => {
+    expect(getGrade(0, 0).grade).toBe('F');
+    expect(getGrade(99, 0).grade).toBe('F');
+  });
+
+  it('grade ranking is monotonic (S > A > B > C > D > F)', () => {
+    const rank = 'SABCDF';
+    const scenarios = [
+      { score: 5000, streak: 8 },
+      { score: 3000, streak: 5 },
+      { score: 1500, streak: 3 },
+      { score: 500,  streak: 0 },
+      { score: 100,  streak: 0 },
+      { score: 0,    streak: 0 },
+    ];
+    for (let i = 0; i < scenarios.length - 1; i++) {
+      const cur = rank.indexOf(getGrade(scenarios[i].score, scenarios[i].streak).grade);
+      const next = rank.indexOf(getGrade(scenarios[i + 1].score, scenarios[i + 1].streak).grade);
+      expect(cur).toBeLessThan(next);
+    }
+  });
+});

@@ -11,6 +11,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
+- **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
 - **Two modes** — Timed (90s) and Zen (no timer)
 - **Tutorial** — Interactive walkthrough for new players
@@ -55,7 +56,7 @@ All source files attach their exports to `window` — no bundler, no module syst
 npm test
 ```
 
-82+ unit tests covering deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
+91 unit tests covering performance grade system (threshold logic, rank monotonicity, streak/score interaction), deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
 
 ## Tech Stack
 
