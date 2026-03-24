@@ -7,6 +7,7 @@ class AudioEngine {
     this.ctx = null;
     this.masterGain = null;
     this.initialized = false;
+    this.muted = false;
     this.bgPlaying = false;
     this.bgNodes = [];
 
@@ -541,6 +542,21 @@ class AudioEngine {
     osc.start(t);
     osc.stop(t + duration);
     this.bgNodes.push(osc);
+  }
+
+  // -------------------------------------------------------
+  // MUTE / UNMUTE
+  // -------------------------------------------------------
+  setMuted(muted) {
+    this.muted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.6, this.ctx.currentTime, 0.08);
+    }
+  }
+
+  toggleMute() {
+    this.setMuted(!this.muted);
+    return this.muted;
   }
 
   // -------------------------------------------------------

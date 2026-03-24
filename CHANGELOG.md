@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0] — 2026-03-24
+
+### Added
+- Sound toggle system — mute/unmute audio from the title screen (top-right speaker icon) or the in-game pause menu
+- Persistent mute preference — sound state saved via SafeStorage and restored across sessions and scene transitions
+- Speaker and muted-speaker icons added to procedural Icons system (no external assets)
+- AudioEngine `setMuted()` / `toggleMute()` methods with smooth gain ramping (no clicks or pops)
+- Pause menu now includes a SOUND: ON/OFF toggle button between the tip and resume button
+- Pause card height expanded to accommodate sound toggle without cramping other controls
+
 ## [0.4.1] — 2026-03-24
 
 ### Fixed

@@ -181,6 +181,50 @@ class Icons {
     g.fillCircle(x, y + size * 0.43, 2.5);
     return g;
   }
+
+  // Speaker icon (sound on)
+  static speaker(scene, x, y, size = 16, color = 0xffffff) {
+    const g = scene.add.graphics();
+    const s = size * 0.4;
+    g.fillStyle(color, 0.9);
+    // Speaker body (rectangle)
+    g.fillRect(x - s * 0.6, y - s * 0.35, s * 0.5, s * 0.7);
+    // Cone (triangle extending right-to-left)
+    g.fillTriangle(
+      x - s * 0.6, y - s * 0.35,
+      x - s * 0.6, y + s * 0.35,
+      x - s * 1.1, y
+    );
+    // Sound waves (arcs)
+    g.lineStyle(1.8, color, 0.7);
+    g.beginPath();
+    g.arc(x - s * 0.2, y, s * 0.55, -Math.PI * 0.35, Math.PI * 0.35, false);
+    g.strokePath();
+    g.lineStyle(1.5, color, 0.45);
+    g.beginPath();
+    g.arc(x - s * 0.2, y, s * 0.85, -Math.PI * 0.3, Math.PI * 0.3, false);
+    g.strokePath();
+    return g;
+  }
+
+  // Muted speaker icon (sound off)
+  static speakerMuted(scene, x, y, size = 16, color = 0x888888) {
+    const g = scene.add.graphics();
+    const s = size * 0.4;
+    g.fillStyle(color, 0.5);
+    // Speaker body
+    g.fillRect(x - s * 0.6, y - s * 0.35, s * 0.5, s * 0.7);
+    g.fillTriangle(
+      x - s * 0.6, y - s * 0.35,
+      x - s * 0.6, y + s * 0.35,
+      x - s * 1.1, y
+    );
+    // X mark (muted indicator)
+    g.lineStyle(2.5, 0xe74c3c, 0.85);
+    g.lineBetween(x + s * 0.15, y - s * 0.35, x + s * 0.7, y + s * 0.35);
+    g.lineBetween(x + s * 0.7, y - s * 0.35, x + s * 0.15, y + s * 0.35);
+    return g;
+  }
 }
 
 window.Icons = Icons;

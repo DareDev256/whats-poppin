@@ -330,6 +330,9 @@ class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
+    // Sound toggle (top-right corner)
+    this._buildSoundToggle(width);
+
     // Credits
     this.add.text(width / 2, height * 0.93, 'by DareDev256', {
       fontSize: '12px',
@@ -341,7 +344,57 @@ class TitleScene extends Phaser.Scene {
     this.input.once('pointerdown', () => {
       window.audioEngine.init();
       window.audioEngine.resume();
+      // Restore saved mute preference
+      const wasMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
+      window.audioEngine.setMuted(wasMuted);
     });
+  }
+
+  _buildSoundToggle(width) {
+    const btnX = width - 28;
+    const btnY = 28;
+    const btnSize = 36;
+    const isMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
+
+    this.soundBtnBg = this.add.graphics();
+    this._drawSoundBtnBg(btnX, btnY, btnSize, false);
+
+    this.soundIcon = isMuted
+      ? Icons.speakerMuted(this, btnX, btnY, 22, 0x888888)
+      : Icons.speaker(this, btnX, btnY, 22, 0xffffff);
+
+    this.soundLabel = this.add.text(btnX, btnY + 24, isMuted ? 'OFF' : 'ON', {
+      fontSize: '9px', fontFamily: UI_FONT, fontStyle: 'bold',
+      color: isMuted ? '#666666' : '#2ecc71',
+    }).setOrigin(0.5);
+
+    const hit = this.add.rectangle(btnX, btnY, btnSize, btnSize + 12)
+      .setInteractive().setAlpha(0.001);
+
+    hit.on('pointerover', () => this._drawSoundBtnBg(btnX, btnY, btnSize, true));
+    hit.on('pointerout', () => this._drawSoundBtnBg(btnX, btnY, btnSize, false));
+    hit.on('pointerdown', () => {
+      window.audioEngine.init();
+      window.audioEngine.resume();
+      const nowMuted = window.audioEngine.toggleMute();
+      SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+
+      // Redraw icon
+      this.soundIcon.destroy();
+      this.soundIcon = nowMuted
+        ? Icons.speakerMuted(this, btnX, btnY, 22, 0x888888)
+        : Icons.speaker(this, btnX, btnY, 22, 0xffffff);
+      this.soundLabel.setText(nowMuted ? 'OFF' : 'ON');
+      this.soundLabel.setColor(nowMuted ? '#666666' : '#2ecc71');
+    });
+  }
+
+  _drawSoundBtnBg(x, y, size, hover) {
+    this.soundBtnBg.clear();
+    this.soundBtnBg.fillStyle(hover ? 0x2a2a4e : 0x1a1a2e, 0.8);
+    this.soundBtnBg.fillRoundedRect(x - size / 2, y - size / 2, size, size, 8);
+    this.soundBtnBg.lineStyle(1, hover ? 0xf1c40f : 0x3a3a5e, 0.6);
+    this.soundBtnBg.strokeRoundedRect(x - size / 2, y - size / 2, size, size, 8);
   }
 
 }
@@ -984,6 +1037,9 @@ class GameScene extends Phaser.Scene {
       if (!this.audioStarted) {
         window.audioEngine.init();
         window.audioEngine.resume();
+        // Restore mute preference before starting beat
+        const wasMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
+        window.audioEngine.setMuted(wasMuted);
         window.audioEngine.startBgBeat();
         this.audioStarted = true;
       }
@@ -1185,7 +1241,7 @@ class GameScene extends Phaser.Scene {
 
     // Pause card
     const cardW = width - 40;
-    const cardH = 380;
+    const cardH = 440;
     const cardX = 20;
     const cardY = (height - cardH) / 2;
 
@@ -1230,22 +1286,42 @@ class GameScene extends Phaser.Scene {
     const btnH = 48;
     const btnX = width / 2;
 
+    // Sound toggle in pause menu
+    const isMuted = window.audioEngine.muted;
+    const soundBtnColor = isMuted ? '#888888' : '#ffffff';
+    const soundBtnText = isMuted ? 'SOUND: OFF' : 'SOUND: ON';
+    const soundIconFn = isMuted
+      ? (s, bx, by) => { const ic = Icons.speakerMuted(s, bx, by, 14, 0x888888); this.pauseContainer.add(ic); return ic; }
+      : (s, bx, by) => { const ic = Icons.speaker(s, bx, by, 14, 0xffffff); this.pauseContainer.add(ic); return ic; };
+
+    createButton(this, { x: btnX, y: cardY + 195, width: btnW, height: 40,
+      text: soundBtnText, color: soundBtnColor, container: this.pauseContainer,
+      iconFn: soundIconFn,
+      callback: () => {
+        const nowMuted = window.audioEngine.toggleMute();
+        SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+        // Rebuild pause menu to reflect new state
+        this.cleanupPause();
+        this.pauseGame();
+      },
+    });
+
     // Resume
-    createButton(this, { x: btnX, y: cardY + 210, width: btnW, height: btnH,
+    createButton(this, { x: btnX, y: cardY + 250, width: btnW, height: btnH,
       text: 'RESUME', color: '#2ecc71', container: this.pauseContainer,
       iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
       callback: () => this.resumeGame(),
     });
 
     // Restart
-    createButton(this, { x: btnX, y: cardY + 270, width: btnW, height: btnH,
+    createButton(this, { x: btnX, y: cardY + 310, width: btnW, height: btnH,
       text: 'RESTART', color: '#f1c40f', container: this.pauseContainer,
       iconFn: (s, bx, by) => Icons.restart(s, bx, by, 14, 0xf1c40f),
       callback: () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.restart({ mode: this.gameMode }); },
     });
 
     // Exit to menu — save career stats so zen mode progress isn't lost
-    createButton(this, { x: btnX, y: cardY + 330, width: btnW, height: btnH,
+    createButton(this, { x: btnX, y: cardY + 370, width: btnW, height: btnH,
       text: 'EXIT TO MENU', color: '#e74c3c', container: this.pauseContainer,
       iconFn: (s, bx, by) => Icons.close(s, bx, by, 14, 0xe74c3c),
       callback: () => {
