@@ -41,10 +41,12 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets security headers injected (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`). Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
-- **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
+- **SafeStorage** — Frozen object with key allowlist, max-length guard, try-catch, and FNV-1a integrity checksums. Cannot be monkey-patched or extended at runtime
 - **Score integrity** — High scores validated against checksums to detect tampering; NaN/undefined guards on all score paths prevent corrupted writes
 - **Scene data hardening** — GameOverScene validates all incoming data with `Number.isFinite` fallbacks, preventing crashes on undefined game state
-- **SW hardening** — Service worker validates response origins, handles network failures gracefully
+- **SW hardening** — Service worker validates response origins, rejects non-HTTP(S) schemes, calls `clients.claim()` on activate for immediate security header coverage, handles network failures gracefully
+- **DNS prefetch control** — Disabled to prevent DNS info leakage to third parties
+- **PWA scope restriction** — Manifest `scope` locks installed PWA to `/`, preventing navigation outside the app boundary
 - **Race condition guards** — `gameOverRef` prevents input after time-up; `transitioningRef` prevents double-fire on simultaneous timer/completion events
 
 ## Tests
