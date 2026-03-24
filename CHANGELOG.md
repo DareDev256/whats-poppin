@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] — 2026-03-24
+
+### Fixed
+- Cascade race condition — `startCascadeCycle()` delayed timers now bail out when `gameOver` is true, preventing score/stat mutation after the game has ended
+- `processMatches()` guarded against `gameOver` to stop match processing on a dead game
+- Timer event explicitly cancelled in `endGame()` to prevent ghost ticks
+- GameOverScene now shows "GAME OVER" in Zen mode instead of hardcoded "TIME'S UP"
+- "Play Again" button now replays the correct mode (was hardcoded to timed)
+- Exiting via pause menu now saves career stats and high score, fixing data loss for Zen mode players who quit mid-session
+
 ## [0.4.0] — 2026-03-23
 
 ### Added

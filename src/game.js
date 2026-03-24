@@ -354,15 +354,17 @@ class GameOverScene extends Phaser.Scene {
 
   create(data) {
     const { width, height } = this.scale;
-    const { score, bestStreak, moves, isNewHigh } = data;
+    const { score, bestStreak, moves, isNewHigh, mode } = data;
+    this._mode = mode || 'timed';
 
     // Background
     const bg = this.add.graphics();
     bg.fillStyle(0x0a0a1a, 0.95);
     bg.fillRect(0, 0, width, height);
 
-    // Game Over text
-    const goText = this.add.text(width / 2, height * 0.12, 'TIME\'S UP', {
+    // Game Over text — mode-aware header
+    const headerText = this._mode === 'zen' ? 'GAME OVER' : 'TIME\'S UP';
+    const goText = this.add.text(width / 2, height * 0.12, headerText, {
       fontSize: '42px',
       fontFamily: UI_FONT,
       fontStyle: 'bold',
@@ -466,7 +468,7 @@ class GameOverScene extends Phaser.Scene {
     createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 42,
       text: 'PLAY AGAIN', color: '#2ecc71',
       iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
-      callback: () => this.scene.start('GameScene', { mode: 'timed' }),
+      callback: () => this.scene.start('GameScene', { mode: this._mode }),
     });
     createButton(this, { x: width / 2, y: btnY1 + 55, width: btnW, height: 42,
       text: 'MENU', color: '#aaaaaa',
@@ -1242,11 +1244,22 @@ class GameScene extends Phaser.Scene {
       callback: () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.restart({ mode: this.gameMode }); },
     });
 
-    // Exit to menu
+    // Exit to menu — save career stats so zen mode progress isn't lost
     createButton(this, { x: btnX, y: cardY + 330, width: btnW, height: btnH,
       text: 'EXIT TO MENU', color: '#e74c3c', container: this.pauseContainer,
       iconFn: (s, bx, by) => Icons.close(s, bx, by, 14, 0xe74c3c),
-      callback: () => { this.cleanupPause(); window.audioEngine.stopBgBeat(); this.scene.start('TitleScene'); },
+      callback: () => {
+        this.cleanupPause();
+        if (!this.gameOver && (this.score > 0 || this.totalPops > 0)) {
+          CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak });
+          const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
+          if (this.score > highScore) {
+            SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
+          }
+        }
+        window.audioEngine.stopBgBeat();
+        this.scene.start('TitleScene');
+      },
     });
   }
 
@@ -1322,6 +1335,12 @@ class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.isProcessing = true;
 
+    // Cancel timer to prevent further ticks after game ends
+    if (this.timerEvent) {
+      this.timerEvent.remove(false);
+      this.timerEvent = null;
+    }
+
     window.audioEngine.stopBgBeat();
 
     // Play final sound
@@ -1349,6 +1368,7 @@ class GameScene extends Phaser.Scene {
         isNewHigh,
         career,
         newRecords,
+        mode: this.gameMode,
       });
     });
   }
@@ -1644,6 +1664,7 @@ class GameScene extends Phaser.Scene {
   // MATCH PROCESSING — Power-ups, pop, score, drop, refill
   // -----------------------------------------------------------
   processMatches(matchGroups) {
+    if (this.gameOver) return;
     this.streak++;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
 
@@ -1785,10 +1806,13 @@ class GameScene extends Phaser.Scene {
   // -----------------------------------------------------------
   startCascadeCycle() {
     this.time.delayedCall(300, () => {
+      if (this.gameOver) return;
       this.dropBubbles();
       this.time.delayedCall(350, () => {
+        if (this.gameOver) return;
         this.refillGrid();
         this.time.delayedCall(400, () => {
+          if (this.gameOver) return;
           const newMatches = this.findAllMatches();
           if (newMatches.length > 0) {
             this.processMatches(newMatches);
