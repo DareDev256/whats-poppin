@@ -39,7 +39,7 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
 - **CSP** — Content-Security-Policy with no `unsafe-inline` on scripts, `object-src 'none'`, `upgrade-insecure-requests`, `base-uri`/`form-action`/`frame-ancestors` lockdown
 - **X-Frame-Options** — `DENY` header on both the HTML meta tag and all SW-served responses for legacy browser clickjacking protection
-- **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets security headers injected (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`). Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity
+- **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets security headers injected (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`). Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
 - **SafeStorage** — Frozen object with key allowlist, max-length guard, try-catch, and FNV-1a integrity checksums. Cannot be monkey-patched or extended at runtime
