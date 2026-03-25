@@ -67,23 +67,55 @@ class AudioEngine {
   }
 
   // -------------------------------------------------------
+  // TONE HELPER — eliminates oscillator+gain boilerplate
+  // -------------------------------------------------------
+  /**
+   * Create a single oscillator voice with gain envelope.
+   * Covers the repeated create→connect→schedule→stop pattern.
+   * @param {number} t        — start time (AudioContext.currentTime)
+   * @param {object} opts     — voice parameters
+   * @param {string}  opts.type      — oscillator type ('sine', 'triangle', 'sawtooth', 'square')
+   * @param {number}  opts.freq      — starting frequency
+   * @param {number} [opts.freqEnd]  — if set, exponentialRamp frequency to this value
+   * @param {number} [opts.freqTime] — ramp duration for freqEnd (relative to t)
+   * @param {number}  opts.vol       — starting gain value
+   * @param {number}  opts.dur       — total voice duration (gain ramps to 0.001 over this)
+   * @param {number} [opts.attack]   — if set, gain ramps UP from 0.001 to vol over this time
+   * @param {boolean} [opts.track]   — if true, push to bgNodes for cleanup
+   * @returns {OscillatorNode} the started oscillator (for further manipulation)
+   */
+  _tone(t, { type = 'sine', freq, freqEnd, freqTime, vol, dur, attack, track } = {}) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (freqEnd !== undefined) {
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, t + (freqTime || dur));
+    }
+    if (attack) {
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(vol, t + attack);
+    } else {
+      gain.gain.setValueAtTime(vol, t);
+    }
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(this.compressor);
+    osc.start(t);
+    osc.stop(t + dur + 0.01);
+    if (track) this.bgNodes.push(osc);
+    return osc;
+  }
+
+  // -------------------------------------------------------
   // BUBBLE SELECT — soft click
   // -------------------------------------------------------
   playSelect() {
     if (!this.initialized) return;
-    const now = this.ctx.currentTime;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 800;
-    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.06);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.1);
+    this._tone(this.ctx.currentTime, {
+      type: 'sine', freq: 800, freqEnd: 1200, freqTime: 0.06,
+      vol: 0.15, dur: 0.1,
+    });
   }
 
   // -------------------------------------------------------
@@ -91,8 +123,7 @@ class AudioEngine {
   // -------------------------------------------------------
   playPop(streak = 1, bubbleIndex = 0) {
     if (!this.initialized) return;
-    const now = this.ctx.currentTime;
-    const delay = bubbleIndex * 0.04; // Stagger pops in a group
+    const t = this.ctx.currentTime + bubbleIndex * 0.04;
 
     // Pick note from scale — rises with streak for satisfying escalation
     const noteIdx = Math.min(this.popIndex % this.scale.length, this.scale.length - 1);
@@ -100,33 +131,14 @@ class AudioEngine {
     this.popIndex++;
 
     // Main pop tone
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now + delay);
-    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + delay + 0.08);
-    gain.gain.setValueAtTime(0.2, now + delay);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now + delay);
-    osc.stop(now + delay + 0.15);
+    this._tone(t, { type: 'triangle', freq, freqEnd: freq * 1.5, freqTime: 0.08, vol: 0.2, dur: 0.15 });
 
     // Pop noise burst — the "crunch"
-    this.playNoiseBurst(now + delay, 0.06, 0.12);
+    this.playNoiseBurst(t, 0.06, 0.12);
 
     // Extra harmonics on higher streaks
     if (streak >= 3) {
-      const osc2 = this.ctx.createOscillator();
-      const gain2 = this.ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.value = freq * 2;
-      gain2.gain.setValueAtTime(0.08, now + delay);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.12);
-      osc2.connect(gain2);
-      gain2.connect(this.compressor);
-      osc2.start(now + delay);
-      osc2.stop(now + delay + 0.12);
+      this._tone(t, { type: 'sine', freq: freq * 2, vol: 0.08, dur: 0.12 });
     }
   }
 
@@ -182,18 +194,8 @@ class AudioEngine {
   playNice(t) {
     // Rising chord
     [1, 1.25, 1.5].forEach((mult, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = 440 * mult;
-      gain.gain.setValueAtTime(0.1, t + i * 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.connect(gain);
-      gain.connect(this.compressor);
-      osc.start(t + i * 0.03);
-      osc.stop(t + 0.35);
+      this._tone(t + i * 0.03, { type: 'triangle', freq: 440 * mult, vol: 0.1, dur: 0.3 });
     });
-
     // Quick scratch noise
     this.playNoiseBurst(t, 0.08, 0.15);
   }
@@ -201,31 +203,9 @@ class AudioEngine {
   // 5-streak: 808 kick + rising synth
   playFire(t) {
     // 808 sub kick
-    const kick = this.ctx.createOscillator();
-    const kickGain = this.ctx.createGain();
-    kick.type = 'sine';
-    kick.frequency.setValueAtTime(150, t);
-    kick.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    kickGain.gain.setValueAtTime(0.4, t);
-    kickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    kick.connect(kickGain);
-    kickGain.connect(this.compressor);
-    kick.start(t);
-    kick.stop(t + 0.3);
-
+    this._tone(t, { type: 'sine', freq: 150, freqEnd: 40, freqTime: 0.2, vol: 0.4, dur: 0.3 });
     // Rising synth sweep
-    const sweep = this.ctx.createOscillator();
-    const sweepGain = this.ctx.createGain();
-    sweep.type = 'sawtooth';
-    sweep.frequency.setValueAtTime(200, t);
-    sweep.frequency.exponentialRampToValueAtTime(800, t + 0.25);
-    sweepGain.gain.setValueAtTime(0.08, t);
-    sweepGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    sweep.connect(sweepGain);
-    sweepGain.connect(this.compressor);
-    sweep.start(t);
-    sweep.stop(t + 0.35);
-
+    this._tone(t, { type: 'sawtooth', freq: 200, freqEnd: 800, freqTime: 0.25, vol: 0.08, dur: 0.3 });
     // Hi-hat
     this.playNoiseBurst(t + 0.05, 0.04, 0.2);
     this.playNoiseBurst(t + 0.12, 0.03, 0.15);
@@ -234,64 +214,23 @@ class AudioEngine {
   // 8-streak: heavy 808, anime slash, power chord
   playGodlike(t) {
     // HEAVY sub bass
-    const sub = this.ctx.createOscillator();
-    const subGain = this.ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(200, t);
-    sub.frequency.exponentialRampToValueAtTime(30, t + 0.4);
-    subGain.gain.setValueAtTime(0.5, t);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    sub.connect(subGain);
-    subGain.connect(this.compressor);
-    sub.start(t);
-    sub.stop(t + 0.5);
-
+    this._tone(t, { type: 'sine', freq: 200, freqEnd: 30, freqTime: 0.4, vol: 0.5, dur: 0.5 });
     // Anime slash — fast descending noise
     this.playNoiseBurst(t, 0.12, 0.3);
-
     // Power chord stab
-    [329.63, 415.30, 493.88, 659.25].forEach((freq, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.06, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.connect(gain);
-      gain.connect(this.compressor);
-      osc.start(t + 0.02);
-      osc.stop(t + 0.45);
+    [329.63, 415.30, 493.88, 659.25].forEach((freq) => {
+      this._tone(t + 0.02, { type: 'square', freq, vol: 0.06, dur: 0.4 });
     });
-
     // Metallic ring
-    const ring = this.ctx.createOscillator();
-    const ringGain = this.ctx.createGain();
-    ring.type = 'sine';
-    ring.frequency.value = 2400;
-    ringGain.gain.setValueAtTime(0.05, t);
-    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-    ring.connect(ringGain);
-    ringGain.connect(this.compressor);
-    ring.start(t);
-    ring.stop(t + 0.6);
+    this._tone(t, { type: 'sine', freq: 2400, vol: 0.05, dur: 0.6 });
   }
 
   // 12-streak: full cinematic — bass drop, reverse cymbal, chord swell
   playLegendary(t) {
     // MASSIVE bass drop
-    const drop = this.ctx.createOscillator();
-    const dropGain = this.ctx.createGain();
-    drop.type = 'sine';
-    drop.frequency.setValueAtTime(300, t);
-    drop.frequency.exponentialRampToValueAtTime(25, t + 0.6);
-    dropGain.gain.setValueAtTime(0.6, t);
-    dropGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-    drop.connect(dropGain);
-    dropGain.connect(this.compressor);
-    drop.start(t);
-    drop.stop(t + 0.8);
+    this._tone(t, { type: 'sine', freq: 300, freqEnd: 25, freqTime: 0.6, vol: 0.6, dur: 0.8 });
 
-    // Distorted sub layer
+    // Distorted sub layer (needs waveshaper — manual wiring)
     const dist = this.ctx.createOscillator();
     const distGain = this.ctx.createGain();
     const waveshaper = this.ctx.createWaveShaper();
@@ -306,13 +245,12 @@ class AudioEngine {
     dist.start(t);
     dist.stop(t + 0.7);
 
-    // Reverse cymbal swell
+    // Reverse cymbal swell (noise buffer — not an oscillator)
     const swellDuration = 0.5;
     const swellBuffer = this.ctx.createBuffer(1, this.ctx.sampleRate * swellDuration, this.ctx.sampleRate);
     const swellData = swellBuffer.getChannelData(0);
     for (let i = 0; i < swellData.length; i++) {
-      const progress = i / swellData.length;
-      swellData[i] = (Math.random() * 2 - 1) * Math.pow(progress, 2);
+      swellData[i] = (Math.random() * 2 - 1) * Math.pow(i / swellData.length, 2);
     }
     const swell = this.ctx.createBufferSource();
     swell.buffer = swellBuffer;
@@ -329,20 +267,10 @@ class AudioEngine {
     swellGain.connect(this.compressor);
     swell.start(t);
 
-    // Triumphant chord at peak
+    // Triumphant chord at peak — attack envelope for swell-in
     const chordTime = t + 0.15;
     [523.25, 659.25, 783.99, 1046.50].forEach((freq) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.001, chordTime);
-      gain.gain.linearRampToValueAtTime(0.08, chordTime + 0.1);
-      gain.gain.exponentialRampToValueAtTime(0.001, chordTime + 0.8);
-      osc.connect(gain);
-      gain.connect(this.compressor);
-      osc.start(chordTime);
-      osc.stop(chordTime + 0.85);
+      this._tone(chordTime, { type: 'triangle', freq, vol: 0.08, dur: 0.8, attack: 0.1 });
     });
   }
 
@@ -351,19 +279,9 @@ class AudioEngine {
   // -------------------------------------------------------
   playInvalid() {
     if (!this.initialized) return;
-    const now = this.ctx.currentTime;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.2);
+    this._tone(this.ctx.currentTime, {
+      type: 'sine', freq: 200, freqEnd: 80, freqTime: 0.15, vol: 0.15, dur: 0.2,
+    });
   }
 
   // -------------------------------------------------------
@@ -371,19 +289,9 @@ class AudioEngine {
   // -------------------------------------------------------
   playLand(delay = 0) {
     if (!this.initialized) return;
-    const now = this.ctx.currentTime + delay;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
-    gain.gain.setValueAtTime(0.06, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.1);
+    this._tone(this.ctx.currentTime + delay, {
+      type: 'sine', freq: 120, freqEnd: 60, freqTime: 0.08, vol: 0.06, dur: 0.1,
+    });
   }
 
   // -------------------------------------------------------
@@ -471,18 +379,7 @@ class AudioEngine {
   }
 
   bgKick(t) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(100, t);
-    osc.frequency.exponentialRampToValueAtTime(35, t + 0.12);
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + 0.2);
-    this.bgNodes.push(osc);
+    this._tone(t, { type: 'sine', freq: 100, freqEnd: 35, freqTime: 0.12, vol: 0.2, dur: 0.2, track: true });
   }
 
   bgHihat(t, vol = 0.05) {
@@ -513,57 +410,13 @@ class AudioEngine {
 
   bgSnare(t) {
     // Noise body
-    const bufferSize = this.ctx.sampleRate * 0.1;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 3000;
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.1, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.compressor);
-    noise.start(t);
-    noise.stop(t + 0.12);
-    this.bgNodes.push(noise);
-
+    this.playNoiseBurst(t, 0.1, 0.1);
     // Tonal snap
-    const osc = this.ctx.createOscillator();
-    const oscGain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = 200;
-    oscGain.gain.setValueAtTime(0.08, t);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-    osc.connect(oscGain);
-    oscGain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + 0.06);
-    this.bgNodes.push(osc);
+    this._tone(t, { type: 'triangle', freq: 200, vol: 0.08, dur: 0.06, track: true });
   }
 
   bgBass(t, freq, duration) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.12, t);
-    gain.gain.setValueAtTime(0.12, t + duration * 0.8);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + duration);
-    this.bgNodes.push(osc);
+    this._tone(t, { type: 'sine', freq, vol: 0.12, dur: duration, track: true });
   }
 
   // -------------------------------------------------------

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.0] — 2026-03-25
+
+### Changed
+- **AudioEngine: extract `_tone()` helper** — Consolidated 15+ duplicated oscillator+gain+envelope boilerplate blocks across `playSelect`, `playPop`, `playInvalid`, `playLand`, `playNice`, `playFire`, `playGodlike`, `playLegendary`, `bgKick`, `bgSnare`, and `bgBass` into a single `_tone(t, opts)` method. Supports frequency sweeps, attack envelopes, and background node tracking. Net reduction of ~147 lines with zero behavioral change. Sound methods now read as declarative voice descriptions instead of low-level Web Audio wiring
+
 ## [0.6.1] — 2026-03-24
 
 ### Added

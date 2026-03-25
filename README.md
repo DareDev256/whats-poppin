@@ -8,7 +8,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Power-ups** — Match 4 (Line Clear), Match 5+ (Bomb), L/T shape (Color Nuke)
 - **Streak system** — Chain matches for multipliers, unlock characters at 3x/5x/8x/12x
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
-- **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API)
+- **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API). Internal `_tone()` helper makes adding new sounds trivial
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
@@ -24,7 +24,7 @@ src/
   init.js        — SafeStorage (tamper-resistant localStorage) + SW registration
   game.js        — Grid engine, 6 Phaser scenes, hint system, shared helpers (scanRuns, createButton, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
-  audio.js       — AudioEngine — fully synthesized sound via Web Audio API, persistent mute toggle
+  audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, etc.)
   game.test.js   — 91 Vitest unit tests
