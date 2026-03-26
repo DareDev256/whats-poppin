@@ -128,6 +128,37 @@ function drawDarkGridBg(scene) {
 }
 
 /**
+ * Toolbar icon-button factory — square icon buttons for the in-game HUD.
+ * Eliminates per-button bg/stroke/hitzone duplication in GameScene.create().
+ * @param {Phaser.Scene} scene
+ * @param {object} opts - { x, y, size, iconFn, callback, depth }
+ * @returns {{ bg: Phaser.GameObjects.Graphics, hit: Phaser.GameObjects.Rectangle }}
+ */
+function createToolbarBtn(scene, opts) {
+  const { x, y, size = 36, iconFn, callback, depth = 40 } = opts;
+  const half = size / 2;
+
+  const bg = scene.add.graphics();
+  bg.fillStyle(0x1a1a2e, 0.8);
+  bg.fillRoundedRect(x - half, y - half, size, size, 8);
+  bg.lineStyle(1, 0x3a3a5e, 0.6);
+  bg.strokeRoundedRect(x - half, y - half, size, size, 8);
+  bg.setDepth(depth);
+
+  let icon = null;
+  if (iconFn) {
+    icon = iconFn(scene, x, y);
+    if (icon) icon.setDepth(depth + 1);
+  }
+
+  const hit = scene.add.rectangle(x, y, size, size)
+    .setInteractive().setAlpha(0.001).setDepth(depth + 2);
+  if (callback) hit.on('pointerdown', callback);
+
+  return { bg, icon, hit };
+}
+
+/**
  * Unified button factory — replaces 3 duplicated button methods.
  * @param {Phaser.Scene} scene
  * @param {object} opts - { x, y, width, height, text, subtext, color, iconFn, callback, container, radius }
@@ -1297,73 +1328,55 @@ class GameScene extends Phaser.Scene {
     // Ambient particles
     this.spawnAmbientParticles();
 
-    // ---- PAUSE BUTTON (top-left corner) ----
-    const pauseBtnSize = 36;
+    // ---- HUD TOOLBAR (pause / hint / mute) ----
+    const tbSize = 36;
+    const tbY = HYPE_BAR_HEIGHT + 18;
     const pauseBtnX = width - 30;
-    const pauseBtnY = HYPE_BAR_HEIGHT + 18;
+    const hintBtnX = pauseBtnX - tbSize - 8;
+    const muteBtnX = pauseBtnX - (tbSize + 8) * 2;
 
-    this.pauseBtnBg = this.add.graphics();
-    this.pauseBtnBg.fillStyle(0x1a1a2e, 0.8);
-    this.pauseBtnBg.fillRoundedRect(pauseBtnX - pauseBtnSize / 2, pauseBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.pauseBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
-    this.pauseBtnBg.strokeRoundedRect(pauseBtnX - pauseBtnSize / 2, pauseBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.pauseBtnBg.setDepth(40);
-
-    // Pause icon (two bars)
-    this.pauseIconGfx = Icons.pause(this, pauseBtnX, pauseBtnY, 20, 0xaaaaaa);
-    this.pauseIconGfx.setDepth(41);
-
-    const pauseHit = this.add.rectangle(pauseBtnX, pauseBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(42);
-    pauseHit.on('pointerdown', () => this.togglePause());
-
-    // ---- MUTE BUTTON (left of hint) ----
-    const muteBtnX = pauseBtnX - (pauseBtnSize + 8) * 2;
-    const muteBtnY = pauseBtnY;
-
-    this.muteBtnBg = this.add.graphics();
-    this.muteBtnBg.fillStyle(0x1a1a2e, 0.8);
-    this.muteBtnBg.fillRoundedRect(muteBtnX - pauseBtnSize / 2, muteBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.muteBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
-    this.muteBtnBg.strokeRoundedRect(muteBtnX - pauseBtnSize / 2, muteBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.muteBtnBg.setDepth(40);
-
-    this.drawMuteIcon = (muted) => {
-      if (this.muteIconGfx) this.muteIconGfx.destroy();
-      this.muteIconGfx = muted
-        ? Icons.soundOff(this, muteBtnX, muteBtnY, 18, 0x666666)
-        : Icons.sound(this, muteBtnX, muteBtnY, 18, 0xaaaaaa);
-      this.muteIconGfx.setDepth(41);
-    };
-    this.drawMuteIcon(window.audioEngine.muted);
-
-    const muteHit = this.add.rectangle(muteBtnX, muteBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(43);
-    muteHit.on('pointerdown', () => {
-      const muted = window.audioEngine.toggleMute();
-      this.drawMuteIcon(muted);
+    // Pause
+    const pauseBtn = createToolbarBtn(this, {
+      x: pauseBtnX, y: tbY, size: tbSize,
+      iconFn: (s, bx, by) => Icons.pause(s, bx, by, 20, 0xaaaaaa),
+      callback: () => this.togglePause(),
     });
+    this.pauseBtnBg = pauseBtn.bg;
+    this.pauseIconGfx = pauseBtn.icon;
 
-    // ---- HINT BUTTON (left of pause) ----
+    // Hint
     this.maxHints = this.gameMode === 'zen' ? Infinity : 3;
-    const hintBtnX = pauseBtnX - pauseBtnSize - 8;
-    const hintBtnY = pauseBtnY;
+    const hintBtn = createToolbarBtn(this, {
+      x: hintBtnX, y: tbY, size: tbSize,
+      iconFn: (s, bx, by) => Icons.hint(s, bx, by, 20, 0xf1c40f),
+      callback: () => this.triggerHint(),
+    });
+    this.hintBtnBg = hintBtn.bg;
+    this.hintIconGfx = hintBtn.icon;
 
-    this.hintBtnBg = this.add.graphics();
-    this.hintBtnBg.fillStyle(0x1a1a2e, 0.8);
-    this.hintBtnBg.fillRoundedRect(hintBtnX - pauseBtnSize / 2, hintBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.hintBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
-    this.hintBtnBg.strokeRoundedRect(hintBtnX - pauseBtnSize / 2, hintBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.hintBtnBg.setDepth(40);
-
-    this.hintIconGfx = Icons.hint(this, hintBtnX, hintBtnY, 20, 0xf1c40f);
-    this.hintIconGfx.setDepth(41);
-
-    this.hintCountText = this.add.text(hintBtnX + 12, hintBtnY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`, {
+    this.hintCountText = this.add.text(hintBtnX + 12, tbY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`, {
       fontSize: '10px', fontFamily: UI_FONT, fontStyle: 'bold',
       color: '#f1c40f', stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(42);
 
-    const hintHit = this.add.rectangle(hintBtnX, hintBtnY, pauseBtnSize, pauseBtnSize).setInteractive().setAlpha(0.001).setDepth(43);
-    hintHit.on('pointerdown', () => this.triggerHint());
+    // Mute
+    const muteBtn = createToolbarBtn(this, {
+      x: muteBtnX, y: tbY, size: tbSize,
+      callback: () => {
+        const muted = window.audioEngine.toggleMute();
+        this.drawMuteIcon(muted);
+      },
+    });
+    this.muteBtnBg = muteBtn.bg;
+
+    this.drawMuteIcon = (muted) => {
+      if (this.muteIconGfx) this.muteIconGfx.destroy();
+      this.muteIconGfx = muted
+        ? Icons.soundOff(this, muteBtnX, tbY, 18, 0x666666)
+        : Icons.sound(this, muteBtnX, tbY, 18, 0xaaaaaa);
+      this.muteIconGfx.setDepth(41);
+    };
+    this.drawMuteIcon(window.audioEngine.muted);
 
     // Hint overlay graphics (drawn in update loop)
     this.hintGfx = this.add.graphics().setDepth(4);

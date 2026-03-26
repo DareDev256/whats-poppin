@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.1] — 2026-03-26
+
+### Changed
+- **HUD toolbar: extract `createToolbarBtn()` helper** — Consolidated 3 identical toolbar button creation blocks (pause, hint, mute) in GameScene into a single `createToolbarBtn()` factory function. Each button previously duplicated 8 lines of Graphics fill/stroke, depth assignment, and hit-zone wiring. The factory handles bg rendering, icon placement, and interactive hit-zone setup in one call, returning refs for downstream use. Net reduction of ~20 lines with zero behavioral change
+
 ## [0.8.0] — 2026-03-26
 
 ### Added
