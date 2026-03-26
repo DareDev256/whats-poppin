@@ -993,12 +993,177 @@ class StatsScene extends Phaser.Scene {
       }
     }
 
+    // Scan button
+    const scanY = height - 82;
+    createButton(this, { x: width / 2, y: scanY, width: 180, height: 38,
+      text: 'PERFORMANCE SCAN', color: '#00e5ff',
+      iconFn: (s, bx, by) => Icons.scan(s, bx, by, 14, 0x00e5ff),
+      callback: () => this.scene.start('ScanScene'),
+    });
+
     // Back button
     const backY = height - 40;
     createButton(this, { x: width / 2, y: backY, width: 180, height: 42,
       text: 'BACK', color: '#aaaaaa',
       iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
       callback: () => this.scene.start('TitleScene'),
+    });
+  }
+}
+
+// =============================================================
+// SCAN SCENE — Performance evaluation with progressive challenges
+// =============================================================
+class ScanScene extends Phaser.Scene {
+  constructor() { super({ key: 'ScanScene' }); }
+
+  create() {
+    const { width, height } = this.scale;
+    const stats = CareerStats.load();
+    const gfx = this.add.graphics();
+    drawDarkGridBg(this);
+
+    // ── Derived metrics ──
+    const gp = Math.max(stats.gamesPlayed, 1);
+    const avgScore = Math.round(stats.totalScore / gp);
+    const avgPops = Math.round(stats.totalPops / gp);
+    const efficiency = avgPops > 0 ? +(avgScore / avgPops).toFixed(1) : 0;
+    const nextTier = STREAK_LEVELS.find(l => stats.bestStreak < l.min) || null;
+    const currentTier = STREAK_LEVELS.filter(l => stats.bestStreak >= l.min).pop() || null;
+
+    // Skill bracket (based on avg score)
+    const brackets = [
+      { min: 0,    label: 'ROOKIE',    color: '#666666', accent: 0x666666 },
+      { min: 500,  label: 'PLAYER',    color: '#3498db', accent: 0x3498db },
+      { min: 1500, label: 'BALLER',    color: '#2ecc71', accent: 0x2ecc71 },
+      { min: 3000, label: 'ELITE',     color: '#f1c40f', accent: 0xf1c40f },
+      { min: 5000, label: 'GOATED',    color: '#e74c3c', accent: 0xe74c3c },
+      { min: 8000, label: 'MYTHIC',    color: '#9b59b6', accent: 0x9b59b6 },
+    ];
+    const bracket = brackets.filter(b => avgScore >= b.min).pop();
+    const nextBracket = brackets.find(b => avgScore < b.min) || null;
+
+    // ── Header ──
+    const scanColor = 0x00e5ff;
+    this.add.text(width / 2, 28, 'PERFORMANCE SCAN', {
+      fontSize: '22px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#00e5ff', stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    // ── Skill bracket display ──
+    const bracketY = 56;
+    gfx.fillStyle(0x0d0d1f, 0.95);
+    gfx.fillRoundedRect(15, bracketY, width - 30, 70, 12);
+    gfx.lineStyle(1.5, bracket.accent, 0.5);
+    gfx.strokeRoundedRect(15, bracketY, width - 30, 70, 12);
+
+    this.add.text(width / 2, bracketY + 14, 'SKILL BRACKET', {
+      fontSize: '9px', fontFamily: UI_FONT, fontStyle: 'bold', color: '#444444',
+    }).setOrigin(0.5);
+
+    const bracketLabel = this.add.text(width / 2, bracketY + 42, bracket.label, {
+      fontSize: '30px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: bracket.color,
+    }).setOrigin(0.5).setAlpha(0);
+
+    this.tweens.add({ targets: bracketLabel, alpha: 1, duration: 600, delay: 200, ease: 'Power2' });
+    this.tweens.add({
+      targets: bracketLabel, scale: 1.03, duration: 1200,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 800,
+    });
+
+    // ── Stat bars ──
+    const barStartY = bracketY + 82;
+    const barW = width - 50;
+    const barH = 14;
+    const barGap = 42;
+    const barX = 25;
+
+    const metrics = [
+      { label: 'AVG SCORE', value: avgScore, max: 10000, color: 0xf1c40f, hex: '#f1c40f' },
+      { label: 'EFFICIENCY', value: efficiency, max: 20, color: 0x2ecc71, hex: '#2ecc71', suffix: 'pts/pop' },
+      { label: 'STREAK PEAK', value: stats.bestStreak, max: 15, color: 0xe74c3c, hex: '#e74c3c', suffix: 'x' },
+    ];
+
+    metrics.forEach((m, i) => {
+      const my = barStartY + i * barGap;
+      this.add.text(barX, my, m.label, {
+        fontSize: '9px', fontFamily: UI_FONT, fontStyle: 'bold', color: '#555555',
+      });
+      const displayVal = m.suffix ? `${m.value}${m.suffix}` : m.value.toLocaleString();
+      this.add.text(barX + barW, my, displayVal, {
+        fontSize: '10px', fontFamily: UI_FONT, fontStyle: 'bold', color: m.hex,
+      }).setOrigin(1, 0);
+
+      // Bar track
+      const trackY = my + 16;
+      gfx.fillStyle(0x1a1a2e, 1);
+      gfx.fillRoundedRect(barX, trackY, barW, barH, 4);
+
+      // Animated fill
+      const fill = Math.min(m.value / m.max, 1);
+      const fillGfx = this.add.graphics();
+      fillGfx.fillStyle(m.color, 0.85);
+      fillGfx.fillRoundedRect(barX, trackY, 0, barH, 4);
+
+      this.tweens.addCounter({
+        from: 0, to: fill * barW, duration: 800, delay: 300 + i * 150,
+        ease: 'Power2',
+        onUpdate: (tw) => {
+          fillGfx.clear();
+          fillGfx.fillStyle(m.color, 0.85);
+          fillGfx.fillRoundedRect(barX, trackY, Math.floor(tw.getValue()), barH, 4);
+        },
+      });
+    });
+
+    // ── Progressive challenges ──
+    const challY = barStartY + metrics.length * barGap + 10;
+    this.add.text(width / 2, challY, 'NEXT CHALLENGES', {
+      fontSize: '11px', fontFamily: UI_FONT, fontStyle: 'bold', color: '#00e5ff',
+    }).setOrigin(0.5);
+
+    const challenges = [];
+    if (nextBracket) {
+      challenges.push({ text: `Avg ${nextBracket.min.toLocaleString()} pts → ${nextBracket.label}`, color: nextBracket.color });
+    }
+    if (nextTier) {
+      challenges.push({ text: `${nextTier.min}x streak → unlock ${nextTier.label}`, color: nextTier.color });
+    }
+    const effTarget = Math.ceil(efficiency + 2);
+    challenges.push({ text: `${effTarget}+ pts per pop → sharper combos`, color: '#2ecc71' });
+    if (stats.gamesPlayed < 10) {
+      challenges.push({ text: `Play ${10 - stats.gamesPlayed} more → unlock deeper analysis`, color: '#3498db' });
+    } else {
+      const scoreTarget = Math.ceil(avgScore * 1.25);
+      challenges.push({ text: `Beat ${scoreTarget.toLocaleString()} avg → prove consistency`, color: '#f1c40f' });
+    }
+
+    challenges.slice(0, 3).forEach((ch, i) => {
+      const cy = challY + 20 + i * 30;
+      const dot = this.add.graphics();
+      dot.fillStyle(Phaser.Display.Color.HexStringToColor(ch.color).color, 0.8);
+      dot.fillCircle(barX + 4, cy + 7, 3);
+
+      const txt = this.add.text(barX + 16, cy, ch.text, {
+        fontSize: '12px', fontFamily: UI_FONT, color: '#cccccc',
+        wordWrap: { width: barW - 16 },
+      }).setAlpha(0);
+
+      this.tweens.add({ targets: txt, alpha: 1, duration: 400, delay: 800 + i * 200 });
+    });
+
+    // ── Games played footnote ──
+    const footY = height - 68;
+    this.add.text(width / 2, footY, `Based on ${stats.gamesPlayed} game${stats.gamesPlayed !== 1 ? 's' : ''}`, {
+      fontSize: '10px', fontFamily: UI_FONT, color: '#333333',
+    }).setOrigin(0.5);
+
+    // ── Back button ──
+    createButton(this, { x: width / 2, y: height - 36, width: 180, height: 38,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('StatsScene'),
     });
   }
 }
@@ -2271,7 +2436,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, GameScene, GameOverScene],
+  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, ScanScene, GameScene, GameOverScene],
 };
 
 const game = new Phaser.Game(config);

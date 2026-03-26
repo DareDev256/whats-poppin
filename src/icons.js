@@ -225,6 +225,23 @@ class Icons {
     g.lineBetween(x + s * 0.7, y - s * 0.35, x + s * 0.15, y + s * 0.35);
     return g;
   }
+
+  // Scan/radar icon — pulsing crosshair for performance analysis
+  static scan(scene, x, y, size = 16, color = 0x00e5ff) {
+    const g = scene.add.graphics();
+    g.lineStyle(1.8, color, 0.8);
+    g.strokeCircle(x, y, size * 0.4);
+    g.lineStyle(1.2, color, 0.4);
+    g.strokeCircle(x, y, size * 0.25);
+    // Crosshair lines
+    g.lineStyle(1.5, color, 0.6);
+    g.lineBetween(x, y - size * 0.5, x, y + size * 0.5);
+    g.lineBetween(x - size * 0.5, y, x + size * 0.5, y);
+    // Center dot
+    g.fillStyle(color, 1);
+    g.fillCircle(x, y, 2);
+    return g;
+  }
 }
 
 window.Icons = Icons;

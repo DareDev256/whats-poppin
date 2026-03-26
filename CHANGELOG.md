@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0] — 2026-03-26
+
+### Added
+- Performance Scan scene — deep player evaluation accessible from Career Stats. Calculates skill bracket (Rookie/Player/Baller/Elite/Goated/Mythic) based on average score, displays animated progress bars for avg score, points-per-pop efficiency, and streak peak, then generates 3 progressive challenges tailored to the player's current stats (next bracket target, streak tier unlock, efficiency improvement, consistency proof)
+- Scan icon added to procedural Icons system — radar crosshair in cyan (`#00e5ff`)
+- ScanScene registered in Phaser config and navigable from StatsScene via "PERFORMANCE SCAN" button
+
 ## [0.5.1] — 2026-03-26
 
 ### Fixed

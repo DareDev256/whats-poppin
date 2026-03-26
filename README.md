@@ -12,6 +12,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Sound controls** — Toggle audio from title screen or pause menu, preference persists across sessions
 - **Two modes** — Timed (90s) and Zen (no timer), each with mode-aware game-over and replay
 - **Career stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
+- **Performance scan** — Deep player evaluation: skill bracket rating (Rookie → Mythic), animated stat bars for avg score / efficiency / streak peak, and 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
 
