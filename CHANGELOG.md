@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1] — 2026-03-26
+
+### Fixed
+- Audio timer leak — `stopBgBeat()` now clears the pending `setTimeout`, preventing orphaned `bgLoop()` callbacks on rapid start/stop cycles (game restart, pause toggle)
+- Audio memory leak — `bgNodes` array cleared each bar to prevent unbounded accumulation of stopped `AudioNode` references during long Zen mode sessions (~13K dead refs per 30 min)
+- Redundant grid scan — `resolveInitialMatches()` was calling `findAllMatches()` twice per loop iteration; now caches the result and re-scans only after mutations
+
 ## [0.5.0] — 2026-03-24
 
 ### Added

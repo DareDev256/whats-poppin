@@ -1499,8 +1499,8 @@ class GameScene extends Phaser.Scene {
 
   resolveInitialMatches() {
     let safety = 0;
-    while (this.findAllMatches().length > 0 && safety < 200) {
-      const matches = this.findAllMatches();
+    let matches = this.findAllMatches();
+    while (matches.length > 0 && safety < 200) {
       matches.forEach(group => {
         const b = group[group.length - 1];
         const newColor = this.getColorWithoutMatch(b.getData('row'), b.getData('col'));
@@ -1508,6 +1508,7 @@ class GameScene extends Phaser.Scene {
         b.setTexture(`bubble_${newColor}`);
       });
       safety++;
+      matches = this.findAllMatches();
     }
   }
 

@@ -10,6 +10,7 @@ class AudioEngine {
     this.muted = false;
     this.bgPlaying = false;
     this.bgNodes = [];
+    this.bgTimeout = null;
 
     // Pentatonic scale for melodic pop sounds — always sounds good
     // D minor pentatonic for that moody, hip-hop feel
@@ -411,6 +412,10 @@ class AudioEngine {
 
   stopBgBeat() {
     this.bgPlaying = false;
+    if (this.bgTimeout) {
+      clearTimeout(this.bgTimeout);
+      this.bgTimeout = null;
+    }
     this.bgNodes.forEach(n => { try { n.stop(); } catch (e) {} });
     this.bgNodes = [];
   }
@@ -421,6 +426,10 @@ class AudioEngine {
     const bpm = 75; // Lo-fi tempo
     const beat = 60 / bpm;
     const bar = beat * 4;
+
+    // Clear finished nodes from previous bar to prevent unbounded memory growth
+    // All nodes from the prior bar have stopped by now (bar duration ≈ 3.2s)
+    this.bgNodes = [];
 
     // Kick pattern: 1, 2.5, 3
     [0, beat * 1.5, beat * 2].forEach(t => {
