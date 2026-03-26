@@ -13,6 +13,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
+- **Lifetime stats** — "Your Legacy" dashboard tracks all-time games played (per mode), total bubbles popped, cumulative score, best streak, and best grades. Animated count-up values and color-coded progress bars. All stats checksum-protected via SafeStorage
 - **Two modes** — Timed (90s) and Zen (no timer)
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -22,11 +23,11 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 6 Phaser scenes, hint system, shared helpers (scanRuns, createButton, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, shared helpers (scanRuns, createButton, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
-  icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, etc.)
+  icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
   game.test.js   — 91 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script

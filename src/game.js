@@ -334,9 +334,16 @@ class TitleScene extends Phaser.Scene {
       callback: () => this.scene.start('TipsScene'),
     });
 
+    // Stats button
+    createButton(this, { x: width / 2, y: btnY + 240, width: btnWidth, height: btnHeight, radius: 12,
+      text: 'YOUR LEGACY', subtext: 'Lifetime stats & records',
+      iconFn: (s, bx, by) => Icons.trophy(s, bx, by, 18, 0xf1c40f),
+      callback: () => this.scene.start('StatsScene'),
+    });
+
     // First-time tutorial check
     if (!SafeStorage.get('whatspoppin_played', null)) {
-      createButton(this, { x: width / 2, y: btnY + 240, width: btnWidth, height: btnHeight, radius: 12,
+      createButton(this, { x: width / 2, y: btnY + 320, width: btnWidth, height: btnHeight, radius: 12,
         text: 'TUTORIAL', subtext: 'Learn the basics step by step',
         callback: () => this.scene.start('TutorialScene'),
       });
@@ -993,6 +1000,153 @@ class TipsScene extends Phaser.Scene {
 }
 
 // =============================================================
+// STATS SCENE — Lifetime player stats dashboard
+// =============================================================
+class StatsScene extends Phaser.Scene {
+  constructor() { super({ key: 'StatsScene' }); }
+
+  create() {
+    const { width, height } = this.scale;
+    drawDarkGridBg(this);
+
+    // Header
+    this.add.text(width / 2, height * 0.07, 'YOUR LEGACY', {
+      fontSize: '28px', fontFamily: UI_FONT, fontStyle: 'bold',
+      color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.add.text(width / 2, height * 0.12, 'lifetime stats', {
+      fontSize: '12px', fontFamily: UI_FONT, color: '#555555', letterSpacing: 3,
+    }).setOrigin(0.5);
+
+    // Load all stats from SafeStorage
+    const stats = {
+      gamesTimed: SafeStorage.getInt('whatspoppin_games_timed', 0),
+      gamesZen: SafeStorage.getInt('whatspoppin_games_zen', 0),
+      highScore: SafeStorage.getInt('whatspoppin_highscore', 0),
+      bestStreak: SafeStorage.getInt('whatspoppin_best_streak', 0),
+      totalPops: SafeStorage.getInt('whatspoppin_total_pops', 0),
+      totalScore: SafeStorage.getInt('whatspoppin_total_score', 0),
+      gradeTimed: SafeStorage.get('whatspoppin_bestgrade_timed', '—'),
+      gradeZen: SafeStorage.get('whatspoppin_bestgrade_zen', '—'),
+    };
+    stats.totalGames = stats.gamesTimed + stats.gamesZen;
+
+    const cardX = 20;
+    const cardW = width - 40;
+    const cardTop = height * 0.17;
+    const g = this.add.graphics();
+
+    // Main stat card
+    g.fillStyle(0x12121f, 1);
+    g.fillRoundedRect(cardX, cardTop, cardW, 300, 12);
+    g.lineStyle(1.5, 0x2a2a4a, 0.6);
+    g.strokeRoundedRect(cardX, cardTop, cardW, 300, 12);
+
+    // Stat rows — each with label, value, and animated bar
+    const rows = [
+      { label: 'GAMES PLAYED', value: stats.totalGames, sub: `${stats.gamesTimed} timed / ${stats.gamesZen} zen`, color: '#3498db', max: Math.max(stats.totalGames, 1) },
+      { label: 'HIGH SCORE', value: stats.highScore, sub: null, color: '#f1c40f', max: Math.max(stats.highScore, 1) },
+      { label: 'TOTAL SCORE', value: stats.totalScore, sub: stats.totalGames > 0 ? `avg ${Math.round(stats.totalScore / stats.totalGames)}/game` : null, color: '#2ecc71', max: Math.max(stats.totalScore, 1) },
+      { label: 'BUBBLES POPPED', value: stats.totalPops, sub: stats.totalGames > 0 ? `avg ${Math.round(stats.totalPops / stats.totalGames)}/game` : null, color: '#e74c3c', max: Math.max(stats.totalPops, 1) },
+      { label: 'BEST STREAK', value: `${stats.bestStreak}x`, sub: null, color: '#9b59b6', max: Math.max(stats.bestStreak, 1), raw: stats.bestStreak },
+    ];
+
+    const rowH = 52;
+    const startY = cardTop + 20;
+    const barMaxW = cardW - 50;
+
+    rows.forEach((row, i) => {
+      const ry = startY + i * rowH;
+      const hexColor = Phaser.Display.Color.HexStringToColor(row.color).color;
+
+      // Label
+      this.add.text(cardX + 16, ry, row.label, {
+        fontSize: '10px', fontFamily: UI_FONT, color: '#666666', letterSpacing: 2,
+      });
+
+      // Value (animate counting up)
+      const numericVal = typeof row.value === 'number' ? row.value : row.raw;
+      const valText = this.add.text(cardX + cardW - 16, ry, '0', {
+        fontSize: '18px', fontFamily: UI_FONT, fontStyle: 'bold', color: row.color,
+      }).setOrigin(1, 0);
+
+      if (typeof row.value === 'number' && row.value > 0) {
+        this.tweens.addCounter({
+          from: 0, to: row.value, duration: 1000, delay: 200 + i * 150,
+          ease: 'Quad.easeOut',
+          onUpdate: (tw) => valText.setText(Math.floor(tw.getValue()).toLocaleString()),
+        });
+      } else {
+        valText.setText(String(row.value));
+      }
+
+      // Subtitle
+      if (row.sub) {
+        this.add.text(cardX + 16, ry + 18, row.sub, {
+          fontSize: '10px', fontFamily: UI_FONT, color: '#444444',
+        });
+      }
+
+      // Animated bar
+      const barY = ry + 34;
+      g.fillStyle(0x1a1a2e, 1);
+      g.fillRoundedRect(cardX + 16, barY, barMaxW, 6, 3);
+
+      const bar = this.add.graphics();
+      const barW = numericVal > 0 ? barMaxW * 0.85 : 0; // relative fill (capped at 85% for visual)
+      bar.fillStyle(hexColor, 0.7);
+      bar.fillRoundedRect(cardX + 16, barY, 0, 6, 3);
+
+      if (numericVal > 0) {
+        this.tweens.addCounter({
+          from: 0, to: barW, duration: 800, delay: 400 + i * 150,
+          ease: 'Quad.easeOut',
+          onUpdate: (tw) => {
+            bar.clear();
+            bar.fillStyle(hexColor, 0.7);
+            bar.fillRoundedRect(cardX + 16, barY, tw.getValue(), 6, 3);
+          },
+        });
+      }
+    });
+
+    // Grade badges at bottom of card
+    const badgeY = startY + rows.length * rowH + 8;
+    const gradeRank = 'SABCDF—';
+    [{ mode: 'TIMED', grade: stats.gradeTimed }, { mode: 'ZEN', grade: stats.gradeZen }].forEach((b, i) => {
+      const bx = cardX + cardW * (i === 0 ? 0.25 : 0.75);
+      this.add.text(bx, badgeY, b.mode, {
+        fontSize: '10px', fontFamily: UI_FONT, color: '#555555', letterSpacing: 2,
+      }).setOrigin(0.5);
+      const gInfo = GRADES.find(g => g.grade === b.grade) || { color: '#333333' };
+      const gl = this.add.text(bx, badgeY + 22, b.grade, {
+        fontSize: '30px', fontFamily: UI_FONT, fontStyle: 'bold',
+        color: gInfo.color || '#333333', stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0.5).setScale(0);
+      this.tweens.add({ targets: gl, scale: 1, duration: 400, delay: 800 + i * 200, ease: 'Back.easeOut' });
+    });
+
+    // Streak character display
+    const tierLevel = getStreakLevel(stats.bestStreak);
+    if (tierLevel && window.characters) {
+      const char = window.characters[tierLevel.char];
+      if (char) {
+        const charGfx = this.add.graphics();
+        char.draw(charGfx, width - 40, height * 0.07, 0.5);
+      }
+    }
+
+    // Back button
+    createButton(this, { x: width / 2, y: height * 0.92, width: width - 60, height: 44, radius: 12,
+      text: 'BACK TO MENU', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('TitleScene'),
+    });
+  }
+}
+
+// =============================================================
 // GAME SCENE — Core gameplay
 // =============================================================
 class GameScene extends Phaser.Scene {
@@ -1014,6 +1168,7 @@ class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.powerUpOverlay = null;
     this.pauseContainer = null;
+    this.totalPopped = 0;      // lifetime pop counter for this round
     this.hintPair = null;      // { a: {r,c}, b: {r,c} } — current hint targets
     this.hintGfx = null;       // Graphics object for hint rings
     this.hintActive = false;
@@ -1479,6 +1634,18 @@ class GameScene extends Phaser.Scene {
       SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(finalScore)).toString());
     }
 
+    // Persist lifetime stats
+    const gamesKey = `whatspoppin_games_${this.gameMode}`;
+    SafeStorage.set(gamesKey, (SafeStorage.getInt(gamesKey, 0) + 1).toString());
+    const lifetimePops = SafeStorage.getInt('whatspoppin_total_pops', 0) + (this.totalPopped || 0);
+    SafeStorage.set('whatspoppin_total_pops', lifetimePops.toString());
+    const lifetimeScore = SafeStorage.getInt('whatspoppin_total_score', 0) + finalScore;
+    SafeStorage.set('whatspoppin_total_score', Math.max(0, Math.floor(lifetimeScore)).toString());
+    const allTimeBest = SafeStorage.getInt('whatspoppin_best_streak', 0);
+    if ((this.bestStreak || 0) > allTimeBest) {
+      SafeStorage.set('whatspoppin_best_streak', this.bestStreak.toString());
+    }
+
     // Transition — defensively coerce to safe values before scene hand-off
     this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', {
@@ -1874,6 +2041,7 @@ class GameScene extends Phaser.Scene {
     const powerUpBonus = powerUpsToActivate.length * 50;
     const points = (baseScore + sizeBonus + powerUpBonus) * streakMultiplier;
     this.score += points;
+    this.totalPopped += totalPopped;
     this.scoreText.setText(`SCORE: ${this.score.toLocaleString()}`);
 
     // Score popup
@@ -2345,7 +2513,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, TutorialScene, TipsScene, GameScene, GameOverScene],
+  scene: [BootScene, TitleScene, StatsScene, TutorialScene, TipsScene, GameScene, GameOverScene],
 };
 
 const game = new Phaser.Game(config);

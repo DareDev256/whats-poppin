@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0] — 2026-03-26
+
+### Added
+- **Lifetime Stats Dashboard ("Your Legacy")** — New StatsScene accessible from the title screen via a trophy-adorned button. Displays lifetime statistics with animated count-up values and color-coded progress bars: total games played (with timed/zen split), all-time high score, cumulative score, total bubbles popped (with per-game averages), and best streak ever achieved
+- **Persistent stat tracking** — Every completed game now records lifetime counters in SafeStorage: games per mode, total bubbles popped, cumulative score, and all-time best streak. All values are checksum-protected and tamper-resistant
+- **Best grade showcase** — Stats dashboard displays best letter grades earned per mode with dramatic scale-in reveal animations. Streak-tier character appears in the header when a streak milestone has been reached
+- **Trophy icon** — New `Icons.trophy()` procedurally drawn icon for the stats button
+
 ## [0.7.1] — 2026-03-26
 
 ### Security

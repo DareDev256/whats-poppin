@@ -235,6 +235,26 @@ class Icons {
     return g;
   }
 
+  // Trophy icon (for stats)
+  static trophy(scene, x, y, size = 16, color = 0xf1c40f) {
+    const g = scene.add.graphics();
+    const s = size * 0.4;
+    // Cup body
+    g.fillStyle(color, 0.9);
+    g.fillRoundedRect(x - s * 0.7, y - s * 0.8, s * 1.4, s * 1.2, 3);
+    // Handles
+    g.lineStyle(2, color, 0.7);
+    g.beginPath(); g.arc(x - s * 0.8, y - s * 0.1, s * 0.35, -1.2, 1.2, false); g.strokePath();
+    g.beginPath(); g.arc(x + s * 0.8, y - s * 0.1, s * 0.35, Math.PI - 1.2, Math.PI + 1.2, false); g.strokePath();
+    // Stem + base
+    g.fillRect(x - s * 0.15, y + s * 0.4, s * 0.3, s * 0.4);
+    g.fillRect(x - s * 0.5, y + s * 0.75, s, s * 0.2);
+    // Star on cup
+    g.fillStyle(0x0a0a1a, 0.6);
+    g.fillCircle(x, y - s * 0.15, s * 0.25);
+    return g;
+  }
+
   // Share / export icon
   static share(scene, x, y, size = 16, color = 0xffffff) {
     const g = scene.add.graphics();
