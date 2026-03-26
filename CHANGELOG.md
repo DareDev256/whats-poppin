@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] — 2026-03-26
+
+### Security
+- **SafeStorage: keyed checksums with per-install salt** — `_checksum()` now binds the storage key name and a per-install cryptographic salt into the FNV-1a digest. Previously the checksum only hashed the raw value, allowing cross-key replay attacks (copy a valid value+checksum between keys) and pre-computed cheat scripts that work on every installation. The salt is generated via `crypto.getRandomValues()` and stored under an opaque key
+- **SafeStorage: strict integer validation** — `getInt()` now rejects scientific notation (`1e10`), hex (`0xff`), and float strings (`3.14`) via `/^\d{1,10}$/` allowlist. Previously `parseInt(raw, 10)` would silently accept these formats, allowing crafted values to bypass range expectations
+
 ## [0.7.0] — 2026-03-25
 
 ### Changed

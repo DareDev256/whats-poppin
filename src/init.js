@@ -16,16 +16,60 @@
  *   SafeStorage.getInt('highScore', 0); // → 0 (tampered, returns fallback)
  */
 const SafeStorage = {
+  /** @private Per-install random salt — generated once, stored in localStorage. */
+  _salt: null,
+
   /**
-   * Compute FNV-1a hash of a string value. Used internally for checksums.
+   * Return the per-install salt, creating one on first call.
+   * The salt prevents pre-computed cheat scripts from working across
+   * installations. Stored under a non-obvious key to deter casual tampering.
+   * @returns {string} 16-char hex salt
+   * @private
+   */
+  _getSalt() {
+    if (this._salt) return this._salt;
+    try {
+      const stored = localStorage.getItem('_wp_sid');
+      if (stored && /^[0-9a-f]{16}$/.test(stored)) {
+        this._salt = stored;
+        return this._salt;
+      }
+      // Generate cryptographically random salt when available, else Math.random
+      let salt;
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        const buf = new Uint8Array(8);
+        crypto.getRandomValues(buf);
+        salt = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+      } else {
+        salt = Math.random().toString(16).slice(2, 18).padEnd(16, '0');
+      }
+      localStorage.setItem('_wp_sid', salt);
+      this._salt = salt;
+    } catch (_) {
+      // Storage unavailable — use a session-only fallback
+      this._salt = '0'.repeat(16);
+    }
+    return this._salt;
+  },
+
+  /**
+   * Compute keyed FNV-1a hash of key + value + salt.
+   *
+   * Binds the storage key name into the digest so copying a valid
+   * value+checksum pair between keys is detected (cross-key replay).
+   * The per-install salt ensures the same value produces different
+   * checksums on different devices.
+   *
+   * @param {string} key — storage key name (bound into hash)
    * @param {string} val — value to hash
    * @returns {string} base-36 encoded hash
    * @private
    */
-  _checksum(val) {
+  _checksum(key, val) {
+    const material = this._getSalt() + ':' + key + ':' + val;
     let h = 0x811c9dc5;
-    for (let i = 0; i < val.length; i++) {
-      h ^= val.charCodeAt(i);
+    for (let i = 0; i < material.length; i++) {
+      h ^= material.charCodeAt(i);
       h = Math.imul(h, 0x01000193);
     }
     return (h >>> 0).toString(36);
@@ -42,14 +86,15 @@ const SafeStorage = {
       const raw = localStorage.getItem(key);
       if (raw === null) return fallback;
       const check = localStorage.getItem(key + '_c');
-      if (check && check !== this._checksum(raw)) return fallback;
+      if (check && check !== this._checksum(key, raw)) return fallback;
       return raw;
     } catch (_) { return fallback; }
   },
 
   /**
    * Read an integer from localStorage with validation and checksum.
-   * Returns fallback if the stored value is NaN, negative, or tampered.
+   * Returns fallback if the stored value is NaN, negative, tampered,
+   * or uses scientific/hex notation (only plain decimal digits accepted).
    * @param {string} key — storage key
    * @param {number} fallback — returned on any failure
    * @returns {number} parsed integer (≥ 0) or fallback
@@ -57,12 +102,14 @@ const SafeStorage = {
   getInt(key, fallback) {
     const raw = this.get(key, null);
     if (raw === null) return fallback;
+    // Reject scientific notation, hex, floats — only plain decimal digits
+    if (!/^\d{1,10}$/.test(raw)) return fallback;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) ? Math.max(0, n) : fallback;
   },
 
   /**
-   * Write a value to localStorage with an accompanying checksum.
+   * Write a value to localStorage with an accompanying keyed checksum.
    * Fails silently if storage is full, disabled, or in private browsing.
    * @param {string} key — storage key
    * @param {*} value — value to store (coerced to string)
@@ -71,7 +118,7 @@ const SafeStorage = {
     try {
       const str = String(value);
       localStorage.setItem(key, str);
-      localStorage.setItem(key + '_c', this._checksum(str));
+      localStorage.setItem(key + '_c', this._checksum(key, str));
     } catch (_) { /* storage full or disabled — fail silently */ }
   },
 };

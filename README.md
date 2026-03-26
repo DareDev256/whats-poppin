@@ -21,7 +21,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 
 ```
 src/
-  init.js        — SafeStorage (tamper-resistant localStorage) + SW registration
+  init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
   game.js        — Grid engine, 6 Phaser scenes, hint system, shared helpers (scanRuns, createButton, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
