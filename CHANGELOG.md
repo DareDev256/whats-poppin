@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2] — 2026-03-27
+
+### Changed
+- Extracted `drawCard()` utility — eliminates 15+ duplicated `fillRoundedRect`/`strokeRoundedRect` card-drawing blocks across all scenes (StatsScene, ScanScene, GameOverScene, TipsScene, GameScene, TutorialScene)
+- Extracted `drawSceneHeader()` utility — unifies scene title rendering across TipsScene, StatsScene, and ScanScene
+- Replaced TipsScene hand-rolled back button with `createButton()` for consistent hover behavior
+- Refactored `_drawSoundBtnBg` and pause button to use `drawCard()` internally
+
 ## [0.6.1] — 2026-03-27
 
 ### Security

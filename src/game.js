@@ -91,6 +91,42 @@ function drawDarkGridBg(scene) {
 }
 
 /**
+ * Draw a UI card panel — eliminates 15+ duplicated fillRoundedRect/strokeRoundedRect blocks.
+ * @param {Phaser.GameObjects.Graphics} gfx - Graphics object to draw on
+ * @param {object} opts - { x, y, w, h, radius?, fillAlpha?, borderColor?, borderAlpha? }
+ */
+function drawCard(gfx, opts) {
+  const {
+    x, y, w, h,
+    radius = 10,
+    fillColor = 0x12121f,
+    fillAlpha = 0.9,
+    borderColor = 0x3a3a5e,
+    borderAlpha = 0.3,
+    borderWidth = 1,
+  } = opts;
+  gfx.fillStyle(fillColor, fillAlpha);
+  gfx.fillRoundedRect(x, y, w, h, radius);
+  gfx.lineStyle(borderWidth, borderColor, borderAlpha);
+  gfx.strokeRoundedRect(x, y, w, h, radius);
+}
+
+/**
+ * Draw a standard scene header — used by TipsScene, StatsScene, ScanScene, TutorialScene.
+ * @param {Phaser.Scene} scene
+ * @param {string} text
+ * @param {object} opts - { color?, y? }
+ */
+function drawSceneHeader(scene, text, opts = {}) {
+  const { width } = scene.scale;
+  const { color = '#ffffff', y = 30 } = opts;
+  return scene.add.text(width / 2, y, text, {
+    fontSize: '28px', fontFamily: UI_FONT,
+    fontStyle: 'bold', color, stroke: '#000000', strokeThickness: 4,
+  }).setOrigin(0.5);
+}
+
+/**
  * Unified button factory — replaces 3 duplicated button methods.
  * @param {Phaser.Scene} scene
  * @param {object} opts - { x, y, width, height, text, subtext, color, iconFn, callback, container, radius }
@@ -391,10 +427,9 @@ class TitleScene extends Phaser.Scene {
 
   _drawSoundBtnBg(x, y, size, hover) {
     this.soundBtnBg.clear();
-    this.soundBtnBg.fillStyle(hover ? 0x2a2a4e : 0x1a1a2e, 0.8);
-    this.soundBtnBg.fillRoundedRect(x - size / 2, y - size / 2, size, size, 8);
-    this.soundBtnBg.lineStyle(1, hover ? 0xf1c40f : 0x3a3a5e, 0.6);
-    this.soundBtnBg.strokeRoundedRect(x - size / 2, y - size / 2, size, size, 8);
+    drawCard(this.soundBtnBg, { x: x - size / 2, y: y - size / 2, w: size, h: size,
+      radius: 8, fillColor: hover ? 0x2a2a4e : 0x1a1a2e, fillAlpha: 0.8,
+      borderColor: hover ? 0xf1c40f : 0x3a3a5e, borderAlpha: 0.6 });
   }
 
 }
@@ -436,10 +471,8 @@ class GameOverScene extends Phaser.Scene {
     // Score card
     const cardY = height * 0.30;
     const cardH = 200;
-    bg.fillStyle(0x12121f, 1);
-    bg.fillRoundedRect(20, cardY, width - 40, cardH, 16);
-    bg.lineStyle(2, 0x2a2a4a, 0.8);
-    bg.strokeRoundedRect(20, cardY, width - 40, cardH, 16);
+    drawCard(bg, { x: 20, y: cardY, w: width - 40, h: cardH, radius: 16,
+      fillAlpha: 1, borderColor: 0x2a2a4a, borderAlpha: 0.8, borderWidth: 2 });
 
     // Score
     this.add.text(width / 2, cardY + 30, 'FINAL SCORE', {
@@ -723,10 +756,9 @@ class TutorialScene extends Phaser.Scene {
     const nextW = 140;
     const drawNextBtn = (isLast) => {
       nextBg.clear();
-      nextBg.fillStyle(0x1a1a2e, 1);
-      nextBg.fillRoundedRect(width / 2 - nextW / 2, navY - 20, nextW, 40, 10);
-      nextBg.lineStyle(2, 0xf1c40f, 0.5);
-      nextBg.strokeRoundedRect(width / 2 - nextW / 2, navY - 20, nextW, 40, 10);
+      drawCard(nextBg, { x: width / 2 - nextW / 2, y: navY - 20, w: nextW, h: 40,
+        fillColor: 0x1a1a2e, fillAlpha: 1, borderColor: 0xf1c40f,
+        borderAlpha: 0.5, borderWidth: 2 });
       this.nextLabel.setText(isLast ? 'LET\'S GO' : 'NEXT');
     };
 
@@ -775,10 +807,7 @@ class TipsScene extends Phaser.Scene {
     bg.fillRect(0, 0, width, height);
 
     // Title
-    this.add.text(width / 2, 30, 'HOW TO PLAY', {
-      fontSize: '28px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    drawSceneHeader(this, 'HOW TO PLAY');
 
     const sections = [
       {
@@ -824,10 +853,8 @@ class TipsScene extends Phaser.Scene {
     sections.forEach(section => {
       // Section card
       const cardH = 16 + section.items.length * 22 + 10;
-      bg.fillStyle(0x12121f, 0.9);
-      bg.fillRoundedRect(15, yPos, width - 30, cardH, 10);
-      bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(section.color).color, 0.3);
-      bg.strokeRoundedRect(15, yPos, width - 30, cardH, 10);
+      drawCard(bg, { x: 15, y: yPos, w: width - 30, h: cardH,
+        borderColor: Phaser.Display.Color.HexStringToColor(section.color).color });
 
       this.add.text(25, yPos + 8, section.title, {
         fontSize: '13px', fontFamily: UI_FONT,
@@ -845,22 +872,12 @@ class TipsScene extends Phaser.Scene {
       yPos += cardH + 8;
     });
 
-    // Back button
-    const backY = height - 40;
-    const backBg = this.add.graphics();
-    backBg.fillStyle(0x1a1a2e, 1);
-    backBg.fillRoundedRect(width / 2 - 80, backY - 18, 160, 36, 8);
-    backBg.lineStyle(2, 0x3a3a5e, 0.8);
-    backBg.strokeRoundedRect(width / 2 - 80, backY - 18, 160, 36, 8);
-
-    Icons.back(this, width / 2 - 35, backY, 14, 0xffffff);
-    this.add.text(width / 2 + 5, backY, 'BACK', {
-      fontSize: '16px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff',
-    }).setOrigin(0.5);
-
-    const backHit = this.add.rectangle(width / 2, backY, 160, 36).setInteractive().setAlpha(0.001);
-    backHit.on('pointerdown', () => this.scene.start('TitleScene'));
+    // Back button — uses unified createButton instead of hand-rolled graphics
+    createButton(this, { x: width / 2, y: height - 40, width: 180, height: 42,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('TitleScene'),
+    });
   }
 }
 
@@ -877,10 +894,7 @@ class StatsScene extends Phaser.Scene {
     drawDarkGridBg(this);
 
     // Title
-    this.add.text(width / 2, 30, 'CAREER STATS', {
-      fontSize: '28px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    drawSceneHeader(this, 'CAREER STATS', { color: '#f1c40f' });
 
     // Stat cards
     const cardX = 15;
@@ -904,10 +918,8 @@ class StatsScene extends Phaser.Scene {
       const cx = cardX + col * (cellW + 8);
       const cy = gridY + row * (cellH + 8);
 
-      bg.fillStyle(0x12121f, 0.9);
-      bg.fillRoundedRect(cx, cy, cellW, cellH, 10);
-      bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(cell.color).color, 0.3);
-      bg.strokeRoundedRect(cx, cy, cellW, cellH, 10);
+      drawCard(bg, { x: cx, y: cy, w: cellW, h: cellH,
+        borderColor: Phaser.Display.Color.HexStringToColor(cell.color).color });
 
       this.add.text(cx + cellW / 2, cy + 18, cell.label, {
         fontSize: '10px', fontFamily: UI_FONT,
@@ -922,10 +934,7 @@ class StatsScene extends Phaser.Scene {
 
     // — Lifetime totals bar —
     const barY = gridY + 2 * (cellH + 8) + 8;
-    bg.fillStyle(0x12121f, 0.9);
-    bg.fillRoundedRect(cardX, barY, cardW, 52, 10);
-    bg.lineStyle(1, 0x2ecc71, 0.3);
-    bg.strokeRoundedRect(cardX, barY, cardW, 52, 10);
+    drawCard(bg, { x: cardX, y: barY, w: cardW, h: 52, borderColor: 0x2ecc71 });
 
     this.add.text(width / 2, barY + 14, 'LIFETIME SCORE', {
       fontSize: '10px', fontFamily: UI_FONT,
@@ -939,10 +948,7 @@ class StatsScene extends Phaser.Scene {
 
     // — Averages section —
     const avgY = barY + 68;
-    bg.fillStyle(0x12121f, 0.9);
-    bg.fillRoundedRect(cardX, avgY, cardW, 58, 10);
-    bg.lineStyle(1, 0x3a3a5e, 0.3);
-    bg.strokeRoundedRect(cardX, avgY, cardW, 58, 10);
+    drawCard(bg, { x: cardX, y: avgY, w: cardW, h: 58 });
 
     this.add.text(width / 2, avgY + 12, 'AVERAGES', {
       fontSize: '10px', fontFamily: UI_FONT,
@@ -968,10 +974,8 @@ class StatsScene extends Phaser.Scene {
     if (tierLevel && window.characters) {
       const char = window.characters[tierLevel.char];
       if (char) {
-        bg.fillStyle(0x12121f, 0.9);
-        bg.fillRoundedRect(cardX, tierY, cardW, 80, 10);
-        bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(tierLevel.color).color, 0.3);
-        bg.strokeRoundedRect(cardX, tierY, cardW, 80, 10);
+        drawCard(bg, { x: cardX, y: tierY, w: cardW, h: 80,
+          borderColor: Phaser.Display.Color.HexStringToColor(tierLevel.color).color });
 
         this.add.text(cardX + 12, tierY + 10, 'HIGHEST TIER', {
           fontSize: '10px', fontFamily: UI_FONT,
@@ -1045,17 +1049,13 @@ class ScanScene extends Phaser.Scene {
 
     // ── Header ──
     const scanColor = 0x00e5ff;
-    this.add.text(width / 2, 28, 'PERFORMANCE SCAN', {
-      fontSize: '22px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#00e5ff', stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0.5);
+    drawSceneHeader(this, 'PERFORMANCE SCAN', { color: '#00e5ff', y: 28 });
 
     // ── Skill bracket display ──
     const bracketY = 56;
-    gfx.fillStyle(0x0d0d1f, 0.95);
-    gfx.fillRoundedRect(15, bracketY, width - 30, 70, 12);
-    gfx.lineStyle(1.5, bracket.accent, 0.5);
-    gfx.strokeRoundedRect(15, bracketY, width - 30, 70, 12);
+    drawCard(gfx, { x: 15, y: bracketY, w: width - 30, h: 70, radius: 12,
+      fillColor: 0x0d0d1f, fillAlpha: 0.95, borderColor: bracket.accent,
+      borderAlpha: 0.5, borderWidth: 1.5 });
 
     this.add.text(width / 2, bracketY + 14, 'SKILL BRACKET', {
       fontSize: '9px', fontFamily: UI_FONT, fontStyle: 'bold', color: '#444444',
@@ -1217,10 +1217,8 @@ class GameScene extends Phaser.Scene {
     this.hypeBar = this.add.container(0, 0);
 
     const hypeBackground = this.add.graphics();
-    hypeBackground.fillStyle(0x12121f, 0.9);
-    hypeBackground.fillRoundedRect(10, 8, width - 20, HYPE_BAR_HEIGHT - 16, 12);
-    hypeBackground.lineStyle(2, 0x2a2a4a, 0.6);
-    hypeBackground.strokeRoundedRect(10, 8, width - 20, HYPE_BAR_HEIGHT - 16, 12);
+    drawCard(hypeBackground, { x: 10, y: 8, w: width - 20, h: HYPE_BAR_HEIGHT - 16,
+      radius: 12, borderColor: 0x2a2a4a, borderAlpha: 0.6, borderWidth: 2 });
     this.hypeBar.add(hypeBackground);
 
     this.streakText = this.add.text(width / 2, 35, '', {
@@ -1322,10 +1320,9 @@ class GameScene extends Phaser.Scene {
     const pauseBtnY = HYPE_BAR_HEIGHT + 18;
 
     this.pauseBtnBg = this.add.graphics();
-    this.pauseBtnBg.fillStyle(0x1a1a2e, 0.8);
-    this.pauseBtnBg.fillRoundedRect(pauseBtnX - pauseBtnSize / 2, pauseBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
-    this.pauseBtnBg.lineStyle(1, 0x3a3a5e, 0.6);
-    this.pauseBtnBg.strokeRoundedRect(pauseBtnX - pauseBtnSize / 2, pauseBtnY - pauseBtnSize / 2, pauseBtnSize, pauseBtnSize, 8);
+    drawCard(this.pauseBtnBg, { x: pauseBtnX - pauseBtnSize / 2, y: pauseBtnY - pauseBtnSize / 2,
+      w: pauseBtnSize, h: pauseBtnSize, radius: 8,
+      fillColor: 0x1a1a2e, fillAlpha: 0.8, borderAlpha: 0.6 });
     this.pauseBtnBg.setDepth(40);
 
     // Pause icon (two bars)
@@ -1411,10 +1408,8 @@ class GameScene extends Phaser.Scene {
     const cardY = (height - cardH) / 2;
 
     const card = this.add.graphics();
-    card.fillStyle(0x12121f, 1);
-    card.fillRoundedRect(cardX, cardY, cardW, cardH, 16);
-    card.lineStyle(2, 0x3a3a5e, 0.8);
-    card.strokeRoundedRect(cardX, cardY, cardW, cardH, 16);
+    drawCard(card, { x: cardX, y: cardY, w: cardW, h: cardH, radius: 16,
+      fillAlpha: 1, borderAlpha: 0.8, borderWidth: 2 });
     this.pauseContainer.add(card);
 
     // PAUSED title
