@@ -10,7 +10,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API) with mute toggle. Audio engine properly cleans up timers and nodes to prevent memory leaks in long sessions
 - **Sound controls** — Toggle audio from title screen or pause menu, preference persists across sessions
-- **Two modes** — Timed (90s) and Zen (no timer), each with mode-aware game-over and replay
+- **Two modes** — Timed (90s) and Zen (no timer), each with mode-aware game-over and replay. Pause fully freezes all game logic including cascades, timers, and ambient effects
 - **Career stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
 - **Performance scan** — Deep player evaluation: skill bracket rating (Rookie → Mythic), animated stat bars for avg score / efficiency / streak peak, and 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
