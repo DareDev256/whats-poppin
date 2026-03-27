@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1] — 2026-03-27
+
+### Security
+- Eliminated last `unsafe-inline` CSP directive — service worker offline fallback page now uses pre-cached external `src/offline.css` instead of inline `<style>` tags
+- Tightened `OFFLINE_CSP` from `style-src 'unsafe-inline'` to `style-src 'self'` — the entire app now has zero `unsafe-inline` across all code paths (main page, SW responses, and offline fallback)
+- Bumped SW cache version to `whatspoppin-v6` to ensure existing installs pick up the new `offline.css` asset
+
 ## [0.6.0] — 2026-03-26
 
 ### Added
