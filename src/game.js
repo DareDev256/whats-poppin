@@ -1206,6 +1206,12 @@ class GameScene extends Phaser.Scene {
     this.idleTime = 0;         // ms since last input
     this.hintsUsed = 0;
     this.maxHints = 3;         // timed mode limit; zen = unlimited
+
+    // Live milestone tracking — loaded records from SafeStorage
+    this.prevHighScore = SafeStorage.getInt('whatspoppin_highscore', 0);
+    this.prevBestStreak = SafeStorage.getInt('whatspoppin_best_streak', 0);
+    this.highScoreNotified = false;   // fire once per game
+    this.bestStreakNotified = false;
   }
 
   create() {
@@ -1628,6 +1634,89 @@ class GameScene extends Phaser.Scene {
     if (this.timeLeft <= 10 && this.timeLeft > 0) {
       this.cameras.main.shake(50, 0.001);
     }
+  }
+
+  // -----------------------------------------------------------
+  // LIVE MILESTONES — fire once per game when records are broken
+  // -----------------------------------------------------------
+  checkMilestones() {
+    // New high score — only fires if there was a previous record to beat
+    if (!this.highScoreNotified && this.prevHighScore > 0 && this.score > this.prevHighScore) {
+      this.highScoreNotified = true;
+      this.showMilestoneBanner('NEW HIGH SCORE!', '#f1c40f', 0xf1c40f);
+    }
+    // New best streak — only fires if there was a previous record to beat
+    if (!this.bestStreakNotified && this.prevBestStreak > 0 && this.bestStreak > this.prevBestStreak) {
+      this.bestStreakNotified = true;
+      // Stagger if both fire on the same match
+      const delay = this.highScoreNotified && this.score > this.prevHighScore ? 1800 : 0;
+      this.time.delayedCall(delay, () => {
+        this.showMilestoneBanner(`BEST STREAK: ${this.bestStreak}x`, '#e74c3c', 0xe74c3c);
+      });
+    }
+  }
+
+  showMilestoneBanner(text, colorStr, colorHex) {
+    const { width, height } = this.scale;
+    const cy = height * 0.42; // center of the grid area
+
+    // Glow backdrop — horizontal band
+    const glow = this.add.graphics().setDepth(55);
+    glow.fillStyle(colorHex, 0.12);
+    glow.fillRect(0, cy - 28, width, 56);
+    glow.lineStyle(1.5, colorHex, 0.35);
+    glow.lineBetween(0, cy - 28, width, cy - 28);
+    glow.lineBetween(0, cy + 28, width, cy + 28);
+
+    // Main text — scales in with bounce
+    const label = this.add.text(width / 2, cy, text, {
+      fontSize: '26px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: colorStr,
+      stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(56).setScale(0);
+
+    this.tweens.add({
+      targets: label, scale: 1, duration: 400, ease: 'Back.easeOut',
+    });
+
+    // Pulsing glow
+    this.tweens.add({
+      targets: glow, alpha: 0.25, duration: 400, yoyo: true, repeat: 2,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Sparkle burst — small stars shoot outward from the banner
+    for (let i = 0; i < 12; i++) {
+      const sx = width / 2 + Phaser.Math.Between(-100, 100);
+      const p = this.add.image(sx, cy, 'star');
+      p.setTint(colorHex);
+      p.setScale(Phaser.Math.FloatBetween(0.2, 0.5));
+      p.setDepth(54).setAlpha(0);
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const dist = Phaser.Math.Between(40, 100);
+      this.tweens.add({
+        targets: p, alpha: 0.8, duration: 150, delay: i * 30,
+        onComplete: () => {
+          this.tweens.add({
+            targets: p,
+            x: sx + Math.cos(angle) * dist,
+            y: cy + Math.sin(angle) * dist,
+            alpha: 0, scale: 0,
+            duration: 500, ease: 'Quad.easeOut',
+            onComplete: () => p.destroy(),
+          });
+        },
+      });
+    }
+
+    // Fade out the banner
+    this.time.delayedCall(1400, () => {
+      this.tweens.add({
+        targets: [label, glow], alpha: 0, duration: 400,
+        ease: 'Quad.easeIn',
+        onComplete: () => { label.destroy(); glow.destroy(); },
+      });
+    });
   }
 
   endGame() {
@@ -2062,6 +2151,9 @@ class GameScene extends Phaser.Scene {
       const first = matchGroups[0][0];
       this.showScorePopup(first.x, first.y, `+${points}`, this.streak);
     }
+
+    // ---- LIVE MILESTONES ----
+    this.checkMilestones();
 
     // Streak sound + visual
     window.audioEngine.playStreakHit(this.streak);

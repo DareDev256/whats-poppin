@@ -12,6 +12,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
+- **Live milestones** — "NEW HIGH SCORE!" and "BEST STREAK!" banners fire instantly mid-game when you beat your personal records. Gold/red glow band, scale-in text, and sparkle burst. Each fires once per game; first-ever games (no records to beat) stay clean
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
 - **Lifetime stats** — "Your Legacy" dashboard tracks all-time games played (per mode), total bubbles popped, cumulative score, best streak, and best grades. Animated count-up values and color-coded progress bars. All stats checksum-protected via SafeStorage
 - **Two modes** — Timed (90s) and Zen (no timer)
@@ -102,7 +103,7 @@ Key flags: `hintActive` (bool), `hintPair` (cell coords or null), `idleTime` (ms
 npm test
 ```
 
-91 unit tests covering performance grade system (threshold logic, rank monotonicity, streak/score interaction), deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
+99 unit tests covering live milestone detection (fire-once semantics, no-record guard, simultaneous milestones), performance grade system (threshold logic, rank monotonicity, streak/score interaction), deadlock detection, match-finding algorithm (including cross-shaped and boundary patterns), grid gravity/drop simulation (alternating gaps, empty columns), adjacency validation, swap primitives, streak tier resolution, adlib tier selection, power-up analysis, area-of-effect calculations (edge positions, sparse grids), scoring formula (boundary conditions), shape detection, and game constant integrity. Uses Vitest.
 
 ## Tech Stack
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0] — 2026-03-28
+
+### Added
+- **Live milestone notifications** — "NEW HIGH SCORE!" and "BEST STREAK: Nx" banners fire instantly mid-game the moment you surpass a personal record. Gold horizontal glow band with scale-in text and sparkle burst for high scores; red variant for best streaks. Each milestone fires only once per game. First-ever games (no stored records) stay clean — no false celebrations. When both milestones trigger on the same match, the streak banner staggers 1.8s to avoid overlap
+- **8 new unit tests** — Milestone detection logic: fire-once semantics, no-record guard, simultaneous dual-fire, equality edge cases, first-game suppression. Total: 99 tests
+
 ## [0.8.1] — 2026-03-26
 
 ### Changed

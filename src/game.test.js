@@ -919,3 +919,72 @@ describe('Performance grade system', () => {
     }
   });
 });
+
+// =============================================================
+// LIVE MILESTONE DETECTION
+// =============================================================
+describe('Live milestone detection', () => {
+  /**
+   * Simulates the checkMilestones logic from GameScene.
+   * Pure function version for isolated testing.
+   */
+  function checkMilestones(state) {
+    const fired = [];
+    if (!state.highScoreNotified && state.prevHighScore > 0 && state.score > state.prevHighScore) {
+      fired.push('highscore');
+      state.highScoreNotified = true;
+    }
+    if (!state.bestStreakNotified && state.prevBestStreak > 0 && state.bestStreak > state.prevBestStreak) {
+      fired.push('streak');
+      state.bestStreakNotified = true;
+    }
+    return fired;
+  }
+
+  it('fires high score milestone when previous record is beaten', () => {
+    const state = { score: 1001, prevHighScore: 1000, bestStreak: 2, prevBestStreak: 5, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).toContain('highscore');
+  });
+
+  it('does not fire high score milestone when score equals previous record', () => {
+    const state = { score: 1000, prevHighScore: 1000, bestStreak: 0, prevBestStreak: 0, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).not.toContain('highscore');
+  });
+
+  it('does not fire high score milestone when there is no previous record', () => {
+    const state = { score: 500, prevHighScore: 0, bestStreak: 0, prevBestStreak: 0, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).not.toContain('highscore');
+  });
+
+  it('fires streak milestone when previous best streak is beaten', () => {
+    const state = { score: 0, prevHighScore: 0, bestStreak: 6, prevBestStreak: 5, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).toContain('streak');
+  });
+
+  it('does not fire streak milestone when streak equals previous best', () => {
+    const state = { score: 0, prevHighScore: 0, bestStreak: 5, prevBestStreak: 5, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).not.toContain('streak');
+  });
+
+  it('fires both milestones simultaneously when both records broken', () => {
+    const state = { score: 2000, prevHighScore: 1500, bestStreak: 8, prevBestStreak: 5, highScoreNotified: false, bestStreakNotified: false };
+    const fired = checkMilestones(state);
+    expect(fired).toContain('highscore');
+    expect(fired).toContain('streak');
+  });
+
+  it('fires each milestone only once per game', () => {
+    const state = { score: 2000, prevHighScore: 1000, bestStreak: 6, prevBestStreak: 5, highScoreNotified: false, bestStreakNotified: false };
+    checkMilestones(state);
+    // Second call with even higher values — should not re-fire
+    state.score = 3000;
+    state.bestStreak = 10;
+    const second = checkMilestones(state);
+    expect(second).toEqual([]);
+  });
+
+  it('does not fire milestones on first-ever game (no previous records)', () => {
+    const state = { score: 5000, prevHighScore: 0, bestStreak: 10, prevBestStreak: 0, highScoreNotified: false, bestStreakNotified: false };
+    expect(checkMilestones(state)).toEqual([]);
+  });
+});
