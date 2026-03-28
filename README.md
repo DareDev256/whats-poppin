@@ -10,7 +10,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API) with mute toggle. Audio engine properly cleans up timers and nodes to prevent memory leaks in long sessions
 - **Sound controls** — Toggle audio from title screen or pause menu, preference persists across sessions
-- **Two modes** — Timed (90s) and Zen (no timer), each with mode-aware game-over and replay. Pause fully freezes all game logic including cascades, timers, and ambient effects
+- **Two modes** — Timed (90s) and Zen (no timer), each with mode-aware game-over and replay. Pause fully freezes all game logic — cascades defer via pending flag and resume cleanly
 - **Career stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
 - **Performance scan** — Deep player evaluation: skill bracket rating (Rookie → Mythic), animated stat bars for avg score / efficiency / streak peak, and 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
@@ -33,7 +33,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 npm test
 ```
 
-135 unit tests (all passing) covering SafeStorage (checksum tamper detection, integer parsing edge cases, fallback behavior), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility), cascade simulation (drop → re-match), full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, game constant integrity, and ScanScene derived metrics (skill bracket resolution, efficiency calculation, progressive challenge generation with edge cases). Uses Vitest.
+116 unit tests (all passing) covering SafeStorage (checksum tamper detection, integer parsing edge cases, fallback behavior), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility), cascade simulation (drop → re-match), cascade pause safety (pending flag, resume restart), reshuffle move verification (retry logic, max-attempt cap), endGame selection cleanup, full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, game constant integrity, and ScanScene derived metrics (skill bracket resolution, efficiency calculation, progressive challenge generation with edge cases). Uses Vitest.
 
 ## Tech Stack
 
