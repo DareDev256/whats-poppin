@@ -956,14 +956,34 @@ describe('SafeStorage', () => {
 const CareerStats = {
   _key: 'whatspoppin_career',
   _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  _schema: {
+    gamesPlayed: 100000,
+    totalScore:  1e9,
+    totalPops:   1e9,
+    bestStreak:  1000,
+    bestScore:   1e8,
+  },
   _storage: SafeStorage,
+
+  _sanitize(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { ...this._defaults };
+    const clean = {};
+    for (const key of Object.keys(this._schema)) {
+      const raw = obj[key];
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+        clean[key] = this._defaults[key];
+      } else {
+        clean[key] = Math.min(Math.max(0, Math.floor(raw)), this._schema[key]);
+      }
+    }
+    return clean;
+  },
 
   load() {
     const raw = this._storage.get(this._key, null);
     if (!raw) return { ...this._defaults };
     try {
-      const parsed = JSON.parse(raw);
-      return { ...this._defaults, ...parsed };
+      return this._sanitize(JSON.parse(raw));
     } catch (_) { return { ...this._defaults }; }
   },
 
@@ -978,8 +998,9 @@ const CareerStats = {
     };
     stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
     stats.bestScore = Math.max(stats.bestScore, gameData.score);
-    this._storage.set(this._key, JSON.stringify(stats));
-    return { stats, newRecords };
+    const sanitized = this._sanitize(stats);
+    this._storage.set(this._key, JSON.stringify(sanitized));
+    return { stats: sanitized, newRecords };
   },
 };
 
@@ -1077,6 +1098,71 @@ describe('CareerStats', () => {
     const { stats } = CareerStats.record({ score: 100, pops: 10, bestStreak: 2 });
     expect(stats.gamesPlayed).toBe(2);
     expect(stats.totalScore).toBe(1099);
+  });
+
+  // ── Security: _sanitize hardening ──
+
+  it('strips injected properties not in schema', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: 3, totalScore: 100, totalPops: 50, bestStreak: 4, bestScore: 80,
+      __proto__: { isAdmin: true }, hacked: true, extraField: 'pwned',
+    }));
+    const stats = CareerStats.load();
+    expect(stats.hacked).toBeUndefined();
+    expect(stats.extraField).toBeUndefined();
+    expect(Object.keys(stats).sort()).toEqual(Object.keys(CareerStats._defaults).sort());
+  });
+
+  it('rejects non-numeric types (string injection)', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: 'a]lot', totalScore: [1,2,3], totalPops: {}, bestStreak: true, bestScore: null,
+    }));
+    const stats = CareerStats.load();
+    expect(stats).toEqual(CareerStats._defaults);
+  });
+
+  it('clamps negative values to zero', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: -50, totalScore: -999, totalPops: -1, bestStreak: -10, bestScore: -500,
+    }));
+    const stats = CareerStats.load();
+    expect(stats.gamesPlayed).toBe(0);
+    expect(stats.totalScore).toBe(0);
+  });
+
+  it('clamps absurdly high values to schema bounds', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: 1e12, totalScore: 1e15, totalPops: 1e15, bestStreak: 1e6, bestScore: 1e15,
+    }));
+    const stats = CareerStats.load();
+    expect(stats.gamesPlayed).toBe(100000);
+    expect(stats.bestStreak).toBe(1000);
+    expect(stats.bestScore).toBe(1e8);
+  });
+
+  it('rejects NaN and Infinity values', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: 5, totalScore: null, totalPops: 10, bestStreak: 2, bestScore: 50,
+    }));
+    const stats = CareerStats.load();
+    expect(stats.gamesPlayed).toBe(5);
+    expect(stats.totalScore).toBe(0); // null → default
+    expect(stats.totalPops).toBe(10);
+  });
+
+  it('returns defaults for array payload (type confusion)', () => {
+    SafeStorage.set(CareerStats._key, JSON.stringify([1, 2, 3]));
+    expect(CareerStats.load()).toEqual(CareerStats._defaults);
+  });
+
+  it('record re-sanitizes after arithmetic to prevent overflow', () => {
+    // Seed near the ceiling
+    SafeStorage.set(CareerStats._key, JSON.stringify({
+      gamesPlayed: 99999, totalScore: 999999990, totalPops: 999999990, bestStreak: 999, bestScore: 99999990,
+    }));
+    const { stats } = CareerStats.record({ score: 50, pops: 50, bestStreak: 2 });
+    expect(stats.gamesPlayed).toBe(100000); // capped
+    expect(stats.totalScore).toBe(1e9);     // capped
   });
 });
 

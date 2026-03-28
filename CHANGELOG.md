@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1] — 2026-03-28
+
+### Security
+- Hardened `CareerStats.load()` with schema-validated deserialization — only whitelisted keys (`gamesPlayed`, `totalScore`, `totalPops`, `bestStreak`, `bestScore`) pass through, all others are stripped
+- Added `_sanitize()` method that enforces type checking (rejects non-numeric values), non-negative clamping, and upper-bound limits per field to prevent type confusion, property injection, and integer overflow
+- `record()` now re-sanitizes after arithmetic to prevent accumulated values from exceeding bounds
+- Added 7 security-focused tests: property injection, string/array type confusion, negative clamping, overflow capping, NaN/null rejection, array payload defense, and post-arithmetic bound enforcement
+
 ## [0.7.0] — 2026-03-28
 
 ### Added

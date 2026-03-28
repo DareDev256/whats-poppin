@@ -24,6 +24,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
 - **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
+- **CareerStats sanitization** — Schema-validated deserialization with key whitelist, type enforcement, non-negative clamping, and upper-bound limits. Rejects injected properties, non-numeric types, and overflow values
 - **Score integrity** — High scores validated against checksums to detect tampering
 - **SW hardening** — Service worker validates response origins, handles network failures gracefully
 
@@ -33,7 +34,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 npm test
 ```
 
-116 unit tests (all passing) covering SafeStorage (checksum tamper detection, integer parsing edge cases, fallback behavior), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility), cascade simulation (drop → re-match), cascade pause safety (pending flag, resume restart), reshuffle move verification (retry logic, max-attempt cap), endGame selection cleanup, full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, game constant integrity, and ScanScene derived metrics (skill bracket resolution, efficiency calculation, progressive challenge generation with edge cases). Uses Vitest.
+115 unit tests (all passing) covering SafeStorage (checksum tamper detection, integer parsing edge cases, fallback behavior), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility), cascade simulation (drop → re-match), cascade pause safety (pending flag, resume restart), reshuffle move verification (retry logic, max-attempt cap), endGame selection cleanup, full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (both-null, self-swap), deadlock detection, match-finding algorithm (cross-shaped, boundary patterns), grid gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries, shape detection, game constant integrity, and ScanScene derived metrics (skill bracket resolution, efficiency calculation, progressive challenge generation with edge cases). Uses Vitest.
 
 ## Tech Stack
 

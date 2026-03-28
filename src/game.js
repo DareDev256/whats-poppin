@@ -47,14 +47,36 @@ const UI_FONT = '"Segoe UI", system-ui, sans-serif';
 const CareerStats = {
   _key: 'whatspoppin_career',
   _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  // Schema: every allowed field, its max sane value, and nothing else gets through
+  _schema: {
+    gamesPlayed: 100000,
+    totalScore:  1e9,
+    totalPops:   1e9,
+    bestStreak:  1000,
+    bestScore:   1e8,
+  },
   _storage: SafeStorage,
+
+  /** Sanitize a raw parsed object — only whitelisted keys, clamped non-negative integers */
+  _sanitize(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { ...this._defaults };
+    const clean = {};
+    for (const key of Object.keys(this._schema)) {
+      const raw = obj[key];
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+        clean[key] = this._defaults[key];
+      } else {
+        clean[key] = Math.min(Math.max(0, Math.floor(raw)), this._schema[key]);
+      }
+    }
+    return clean;
+  },
 
   load() {
     const raw = this._storage.get(this._key, null);
     if (!raw) return { ...this._defaults };
     try {
-      const parsed = JSON.parse(raw);
-      return { ...this._defaults, ...parsed };
+      return this._sanitize(JSON.parse(raw));
     } catch (_) { return { ...this._defaults }; }
   },
 
@@ -69,8 +91,10 @@ const CareerStats = {
     };
     stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
     stats.bestScore = Math.max(stats.bestScore, gameData.score);
-    this._storage.set(this._key, JSON.stringify(stats));
-    return { stats, newRecords };
+    // Re-sanitize before persisting to enforce bounds after arithmetic
+    const sanitized = this._sanitize(stats);
+    this._storage.set(this._key, JSON.stringify(sanitized));
+    return { stats: sanitized, newRecords };
   },
 };
 
