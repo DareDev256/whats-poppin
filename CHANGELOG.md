@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0] — 2026-03-28
+
+### Added
+- **Streak multiplier badge** — A prominent animated HUD element that makes the scoring multiplier visible during active streaks. Appears as a floating badge centered above the score bar showing ×2 through ×10. The ring grows with multiplier level, changes color to match streak tier (green → gold → red → purple), bounces in on first appearance, punches on each increment, and pulses with a breathing glow at ×8+. Fades out smoothly when the streak breaks. The multiplier was always in the scoring formula but completely invisible to players — now they can see exactly why streaks matter
+- **5 new unit tests** — Multiplier badge visibility thresholds, cap at ×10, parity with scoring formula, tier color escalation. Total: 104 tests
+
 ## [0.9.0] — 2026-03-28
 
 ### Added

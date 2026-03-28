@@ -1212,6 +1212,7 @@ class GameScene extends Phaser.Scene {
     this.prevBestStreak = SafeStorage.getInt('whatspoppin_best_streak', 0);
     this.highScoreNotified = false;   // fire once per game
     this.bestStreakNotified = false;
+    this._multGlowTween = null;      // multiplier badge pulsing tween ref
   }
 
   create() {
@@ -1423,6 +1424,24 @@ class GameScene extends Phaser.Scene {
         });
       }
     });
+
+    // ---- MULTIPLIER BADGE (visible during active streaks) ----
+    const mbX = width / 2;
+    const mbY = height - 82;
+    this.multBadge = this.add.container(mbX, mbY).setDepth(30).setAlpha(0);
+    this.multRing = this.add.graphics();
+    this.multBadge.add(this.multRing);
+    this.multText = this.add.text(0, -1, '', {
+      fontSize: '22px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5);
+    this.multBadge.add(this.multText);
+    this.multLabel = this.add.text(0, 18, 'MULTIPLIER', {
+      fontSize: '8px', fontFamily: UI_FONT,
+      color: '#666666', letterSpacing: 2,
+    }).setOrigin(0.5);
+    this.multBadge.add(this.multLabel);
 
     // "GO!" flash
     const goText = this.add.text(width / 2, height / 2, 'GO!', {
@@ -2445,6 +2464,78 @@ class GameScene extends Phaser.Scene {
     }
     if (this.bestStreak > 2) {
       this.bestStreakText.setText(`BEST: ${this.bestStreak}x`);
+    }
+    this.updateMultiplierBadge();
+  }
+
+  // -----------------------------------------------------------
+  // MULTIPLIER BADGE — prominent visual for active score multiplier
+  // -----------------------------------------------------------
+  updateMultiplierBadge() {
+    const mult = Math.min(this.streak, 10);
+    if (mult < 2) {
+      // Fade out when streak breaks
+      if (this.multBadge.alpha > 0) {
+        this.tweens.add({
+          targets: this.multBadge, alpha: 0, scale: 0.6,
+          duration: 300, ease: 'Quad.easeIn',
+        });
+        // Kill any active glow tween
+        if (this._multGlowTween) { this._multGlowTween.stop(); this._multGlowTween = null; }
+      }
+      return;
+    }
+
+    // Resolve tier color
+    const level = getStreakLevel(this.streak);
+    const tierColor = level
+      ? Phaser.Display.Color.HexStringToColor(level.color).color
+      : 0x3a3a5e;
+    const tierHex = level ? level.color : '#888888';
+
+    // Redraw ring with tier color
+    this.multRing.clear();
+    const radius = 22 + Math.min(mult - 2, 8) * 1.5;  // grows slightly
+    this.multRing.fillStyle(0x0a0a1a, 0.85);
+    this.multRing.fillCircle(0, 0, radius);
+    this.multRing.lineStyle(2, tierColor, 0.8);
+    this.multRing.strokeCircle(0, 0, radius);
+    // Inner glow ring on high multipliers
+    if (mult >= 5) {
+      this.multRing.lineStyle(1, tierColor, 0.3);
+      this.multRing.strokeCircle(0, 0, radius + 4);
+    }
+
+    // Update text
+    this.multText.setText(`×${mult}`);
+    this.multText.setColor(tierHex);
+    this.multText.setFontSize(mult >= 8 ? '28px' : mult >= 5 ? '25px' : '22px');
+
+    // Show badge with bounce-in animation
+    if (this.multBadge.alpha < 0.5) {
+      this.multBadge.setScale(0.3).setAlpha(1);
+      this.tweens.add({
+        targets: this.multBadge, scale: 1,
+        duration: 350, ease: 'Back.easeOut',
+      });
+    } else {
+      // Punch scale on increment
+      this.tweens.add({
+        targets: this.multBadge, scale: 1.25,
+        duration: 120, yoyo: true, ease: 'Quad.easeOut',
+      });
+    }
+
+    // Pulsing glow at high multipliers (8+)
+    if (mult >= 8 && !this._multGlowTween) {
+      this._multGlowTween = this.tweens.add({
+        targets: this.multBadge, scale: 1.08,
+        duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    } else if (mult < 8 && this._multGlowTween) {
+      this._multGlowTween.stop();
+      this._multGlowTween = null;
+      this.multBadge.setScale(1);
     }
   }
 

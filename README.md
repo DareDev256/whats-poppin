@@ -6,7 +6,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 
 - **Core gameplay** — Swap adjacent bubbles, match 3+ to pop, chain cascades
 - **Power-ups** — Match 4 (Line Clear), Match 5+ (Bomb), L/T shape (Color Nuke)
-- **Streak system** — Chain matches for multipliers, unlock characters at 3x/5x/8x/12x
+- **Streak system** — Chain matches for multipliers (×2–×10), unlock characters at 3x/5x/8x/12x. Live multiplier badge shows your current bonus mid-game with tier-colored ring, bounce-in animation, and pulsing glow at ×8+
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API). Internal `_tone()` helper makes adding new sounds trivial
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
@@ -29,7 +29,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 101 Vitest unit tests
+  game.test.js   — 104 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
 ```

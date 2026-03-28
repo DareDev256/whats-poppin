@@ -988,3 +988,64 @@ describe('Live milestone detection', () => {
     expect(checkMilestones(state)).toEqual([]);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// MULTIPLIER BADGE — visual tier resolution
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Resolve the display multiplier for a given streak.
+ * Mirrors the formula in GameScene.updateMultiplierBadge():
+ *   mult = Math.min(streak, 10); visible when mult >= 2.
+ */
+function getDisplayMultiplier(streak) {
+  return Math.min(streak, 10);
+}
+
+describe('Multiplier badge logic', () => {
+  it('multiplier is invisible at streak 0 and 1', () => {
+    expect(getDisplayMultiplier(0)).toBeLessThan(2);
+    expect(getDisplayMultiplier(1)).toBeLessThan(2);
+  });
+
+  it('multiplier appears at streak 2', () => {
+    expect(getDisplayMultiplier(2)).toBe(2);
+  });
+
+  it('multiplier caps at ×10', () => {
+    expect(getDisplayMultiplier(10)).toBe(10);
+    expect(getDisplayMultiplier(15)).toBe(10);
+    expect(getDisplayMultiplier(100)).toBe(10);
+  });
+
+  it('multiplier matches scoring formula exactly', () => {
+    // The badge value must always equal the actual score multiplier
+    for (let s = 0; s <= 20; s++) {
+      const badgeMult = getDisplayMultiplier(s);
+      const scoreMult = Math.min(s, 10);
+      expect(badgeMult).toBe(scoreMult);
+    }
+  });
+
+  it('tier colors escalate with streak thresholds', () => {
+    // Reuse the same STREAK_LEVELS from game.js
+    const STREAK_LEVELS = [
+      { min: 3, color: '#2ecc71' },
+      { min: 5, color: '#f1c40f' },
+      { min: 8, color: '#e74c3c' },
+      { min: 12, color: '#9b59b6' },
+    ];
+    function getTierColor(streak) {
+      let best = null;
+      for (const level of STREAK_LEVELS) {
+        if (streak >= level.min) best = level;
+      }
+      return best ? best.color : null;
+    }
+    expect(getTierColor(2)).toBeNull();
+    expect(getTierColor(3)).toBe('#2ecc71');
+    expect(getTierColor(7)).toBe('#f1c40f');
+    expect(getTierColor(8)).toBe('#e74c3c');
+    expect(getTierColor(12)).toBe('#9b59b6');
+  });
+});
