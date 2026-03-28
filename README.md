@@ -28,7 +28,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 91 Vitest unit tests
+  game.test.js   — 101 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
 ```
@@ -43,7 +43,7 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets security headers injected (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`). Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
-- **SafeStorage** — Frozen object with key allowlist, max-length guard, try-catch, and FNV-1a integrity checksums. Cannot be monkey-patched or extended at runtime
+- **SafeStorage** — Frozen object with key allowlist, max-length guard, try-catch, and FNV-1a integrity checksums. Cannot be monkey-patched or extended at runtime. Checksums are versioned (`v1$` prefix) for future algorithm rotation. Missing checksums are treated as tampered (no deletion bypass). Salt integrity is self-guarded — tampering with the salt invalidates all stored data. Legacy unversioned checksums from ≤v0.7.1 are auto-migrated on valid read
 - **Score integrity** — High scores validated against checksums to detect tampering; NaN/undefined guards on all score paths prevent corrupted writes
 - **Scene data hardening** — GameOverScene validates all incoming data with `Number.isFinite` fallbacks, preventing crashes on undefined game state
 - **SW hardening** — Service worker validates response origins, rejects non-HTTP(S) schemes, calls `clients.claim()` on activate for immediate security header coverage, handles network failures gracefully
