@@ -1314,6 +1314,9 @@ class GameScene extends Phaser.Scene {
     // Ambient particles
     this.spawnAmbientParticles();
 
+    // ---- STREAK PROGRESS BAR ----
+    this.buildStreakProgressBar();
+
     // ---- PAUSE BUTTON (top-left corner) ----
     const pauseBtnSize = 36;
     const pauseBtnX = width - 30;
@@ -1367,6 +1370,103 @@ class GameScene extends Phaser.Scene {
       duration: 800, ease: 'Quad.easeOut', delay: 300,
       onComplete: () => goText.destroy(),
     });
+  }
+
+  // -----------------------------------------------------------
+  // STREAK PROGRESS BAR — visual tier tracking
+  // -----------------------------------------------------------
+  buildStreakProgressBar() {
+    const { width } = this.scale;
+    const barY = HYPE_BAR_HEIGHT - 2;
+    const barX = 20;
+    const barW = width - 40;
+    const barH = 5;
+    const maxStreak = 12;
+
+    this._spBar = { x: barX, y: barY, w: barW, h: barH, max: maxStreak };
+
+    // Track background
+    const trackGfx = this.add.graphics();
+    trackGfx.fillStyle(0x1a1a2e, 0.8);
+    trackGfx.fillRoundedRect(barX, barY, barW, barH, 2);
+    trackGfx.lineStyle(1, 0x2a2a4a, 0.5);
+    trackGfx.strokeRoundedRect(barX, barY, barW, barH, 2);
+
+    // Fill bar (drawn dynamically)
+    this.streakBarFill = this.add.graphics();
+
+    // Tier markers — small notches at 3, 5, 8, 12
+    const markerGfx = this.add.graphics();
+    const tierPositions = [3, 5, 8, 12];
+    const tierColors = [0x2ecc71, 0xf1c40f, 0xe74c3c, 0x9b59b6];
+
+    tierPositions.forEach((tier, i) => {
+      const mx = barX + (tier / maxStreak) * barW;
+      markerGfx.fillStyle(tierColors[i], 0.6);
+      markerGfx.fillRect(mx - 1, barY - 2, 2, barH + 4);
+    });
+
+    // Tier labels (tiny, positioned below markers)
+    const tierLabels = ['3x', '5x', '8x', '12x'];
+    tierPositions.forEach((tier, i) => {
+      const mx = barX + (tier / maxStreak) * barW;
+      this.add.text(mx, barY + barH + 3, tierLabels[i], {
+        fontSize: '7px', fontFamily: UI_FONT,
+        color: '#444444',
+      }).setOrigin(0.5, 0);
+    });
+
+    // Glow effect (hidden by default)
+    this.streakBarGlow = this.add.graphics();
+    this.streakBarGlow.setAlpha(0);
+
+    this.updateStreakProgress(0, false);
+  }
+
+  updateStreakProgress(streak, animate = true) {
+    const { x, y, w, h, max } = this._spBar;
+    const progress = Math.min(streak / max, 1);
+
+    // Determine fill color from tier
+    let fillColor = 0x3a3a5e; // default dim
+    if (streak >= 12) fillColor = 0x9b59b6;
+    else if (streak >= 8) fillColor = 0xe74c3c;
+    else if (streak >= 5) fillColor = 0xf1c40f;
+    else if (streak >= 3) fillColor = 0x2ecc71;
+    else if (streak >= 1) fillColor = 0x555555;
+
+    const fillW = Math.max(progress * w, 0);
+
+    this.streakBarFill.clear();
+    if (fillW > 0) {
+      this.streakBarFill.fillStyle(fillColor, 0.9);
+      this.streakBarFill.fillRoundedRect(x, y, fillW, h, 2);
+    }
+
+    // Glow pulse on tier thresholds
+    const tierHits = [3, 5, 8, 12];
+    if (animate && tierHits.includes(streak)) {
+      this.streakBarGlow.clear();
+      const glowColor = fillColor;
+      this.streakBarGlow.fillStyle(glowColor, 0.4);
+      this.streakBarGlow.fillRoundedRect(x - 2, y - 2, fillW + 4, h + 4, 3);
+      this.streakBarGlow.setAlpha(1);
+      this.tweens.add({
+        targets: this.streakBarGlow,
+        alpha: 0,
+        duration: 600,
+        ease: 'Quad.easeOut',
+      });
+
+      // Camera shake — escalating intensity by tier
+      if (streak >= 12) {
+        this.cameras.main.shake(400, 0.012);
+      } else if (streak >= 8) {
+        this.cameras.main.shake(300, 0.008);
+      } else if (streak >= 5) {
+        this.cameras.main.shake(200, 0.005);
+      }
+    }
   }
 
   // -----------------------------------------------------------
@@ -1812,6 +1912,7 @@ class GameScene extends Phaser.Scene {
             onComplete: () => {
               this.streak = 0;
               this.updateStreakUI();
+              this.updateStreakProgress(0);
               this.isProcessing = false;
             }
           });
@@ -1904,6 +2005,7 @@ class GameScene extends Phaser.Scene {
     if (this.gameOver) return;
     this.streak++;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+    this.updateStreakProgress(this.streak);
 
     let totalPopped = 0;
     let popIdx = 0;

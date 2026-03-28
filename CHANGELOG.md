@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.0] — 2026-03-28
+
+### Added
+- Streak Tier Progress Bar — horizontal progress indicator between hype bar and game grid, visually tracking combo progress toward the next tier (3x NICE → 5x FIRE → 8x GODLIKE → 12x LEGENDARY)
+- Tier markers with color-coded notches (green/gold/red/purple) and labeled positions (3x, 5x, 8x, 12x)
+- Fill bar animates with tier-appropriate color as streak grows, resets smoothly on failed swaps
+- Glow pulse effect fires on tier threshold hits — expanded fill with fade-out animation
+- Escalating camera shake on high streaks: 5x (subtle), 8x (medium), 12x (intense) — adds visceral impact to big combos
+
 ## [0.6.2] — 2026-03-27
 
 ### Changed
