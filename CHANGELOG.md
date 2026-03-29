@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1] — 2026-03-29
+
+### Fixed
+- **Division-by-zero and NaN guard hardening** — Added `safeDiv()` utility to centralise defensive division across scoring and stats display (avg-per-move, avg-per-game). Added `safeScore()` to clamp score accumulation in `processMatches`, preventing NaN/Infinity propagation through the scoring pipeline. Upgraded `endGame` scene hand-off from weak `|| 0` fallbacks to `safeScore()` (catches Infinity, which `|| 0` misses). All 5 division sites now route through the same guard
+- **13 new unit tests** — `safeDiv` (zero, NaN, Infinity, negative, overflow) and `safeScore` (NaN, Infinity, negative, undefined, custom max). Total: 117 tests
+
 ## [0.10.0] — 2026-03-28
 
 ### Added

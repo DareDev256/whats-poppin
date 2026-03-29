@@ -81,6 +81,32 @@ function getAdlibTier(streak) {
 }
 
 /**
+ * Safe division — returns fallback when divisor is zero, NaN, or result is non-finite.
+ * Centralises the defensive pattern used across scoring and stats display.
+ * @param {number} numerator
+ * @param {number} divisor
+ * @param {number} [fallback=0]
+ * @returns {number}
+ */
+function safeDiv(numerator, divisor, fallback = 0) {
+  if (!divisor || !Number.isFinite(divisor)) return fallback;
+  const result = numerator / divisor;
+  return Number.isFinite(result) ? result : fallback;
+}
+
+/**
+ * Clamp a value to a safe, finite, non-negative number.
+ * Prevents NaN / Infinity from propagating through the scoring pipeline.
+ * @param {number} n
+ * @param {number} [max=999999999]
+ * @returns {number}
+ */
+function safeScore(n, max = 999999999) {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, max);
+}
+
+/**
  * Scan the grid along one axis for consecutive same-color runs.
  * @param {Array[]} grid        — 2D grid of bubbles
  * @param {number}  outerLen    — outer loop bound (rows for horizontal, cols for vertical)
@@ -548,7 +574,7 @@ class GameOverScene extends Phaser.Scene {
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
-    const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
+    const avgPerMove = Math.round(safeDiv(score, moves));
     this.add.text(width * 0.75, statsY, `AVG/MOVE\n${avgPerMove}`, {
       fontSize: '14px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
@@ -674,7 +700,7 @@ class GameOverScene extends Phaser.Scene {
     const tierLevel = getStreakLevel(safeStreak);
     const tierLabel = tierLevel ? ` — ${tierLevel.label}` : '';
     const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
-    const avgPerMove = safeMoves > 0 ? Math.round(safeScore / safeMoves) : 0;
+    const avgPerMove = Math.round(safeDiv(safeScore, safeMoves));
 
     const gradeInfo = getGrade(safeScore, safeStreak);
     const card = [
@@ -1078,8 +1104,8 @@ class StatsScene extends Phaser.Scene {
     const rows = [
       { label: 'GAMES PLAYED', value: stats.totalGames, sub: `${stats.gamesTimed} timed / ${stats.gamesZen} zen`, color: '#3498db', max: Math.max(stats.totalGames, 1) },
       { label: 'HIGH SCORE', value: stats.highScore, sub: null, color: '#f1c40f', max: Math.max(stats.highScore, 1) },
-      { label: 'TOTAL SCORE', value: stats.totalScore, sub: stats.totalGames > 0 ? `avg ${Math.round(stats.totalScore / stats.totalGames)}/game` : null, color: '#2ecc71', max: Math.max(stats.totalScore, 1) },
-      { label: 'BUBBLES POPPED', value: stats.totalPops, sub: stats.totalGames > 0 ? `avg ${Math.round(stats.totalPops / stats.totalGames)}/game` : null, color: '#e74c3c', max: Math.max(stats.totalPops, 1) },
+      { label: 'TOTAL SCORE', value: stats.totalScore, sub: stats.totalGames > 0 ? `avg ${Math.round(safeDiv(stats.totalScore, stats.totalGames))}/game` : null, color: '#2ecc71', max: Math.max(stats.totalScore, 1) },
+      { label: 'BUBBLES POPPED', value: stats.totalPops, sub: stats.totalGames > 0 ? `avg ${Math.round(safeDiv(stats.totalPops, stats.totalGames))}/game` : null, color: '#e74c3c', max: Math.max(stats.totalPops, 1) },
       { label: 'BEST STREAK', value: `${stats.bestStreak}x`, sub: null, color: '#9b59b6', max: Math.max(stats.bestStreak, 1), raw: stats.bestStreak },
     ];
 
@@ -1767,12 +1793,12 @@ class GameScene extends Phaser.Scene {
       SafeStorage.set('whatspoppin_best_streak', this.bestStreak.toString());
     }
 
-    // Transition — defensively coerce to safe values before scene hand-off
+    // Transition — safeScore() catches NaN/Infinity that || 0 would miss
     this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', {
-        score: this.score || 0,
-        bestStreak: this.bestStreak || 0,
-        moves: this.moveCount || 0,
+        score: safeScore(this.score),
+        bestStreak: safeScore(this.bestStreak),
+        moves: safeScore(this.moveCount),
         isNewHigh,
         mode: this.gameMode || 'timed',
       });
@@ -2155,13 +2181,13 @@ class GameScene extends Phaser.Scene {
       }
     });
 
-    // Score
+    // Score — safeScore() prevents NaN/Infinity from corrupting the running total
     const baseScore = totalPopped * 10;
     const streakMultiplier = Math.min(this.streak, 10);
     const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
     const powerUpBonus = powerUpsToActivate.length * 50;
-    const points = (baseScore + sizeBonus + powerUpBonus) * streakMultiplier;
-    this.score += points;
+    const points = safeScore((baseScore + sizeBonus + powerUpBonus) * streakMultiplier);
+    this.score = safeScore(this.score + points);
     this.totalPopped += totalPopped;
     this.scoreText.setText(`SCORE: ${this.score.toLocaleString()}`);
 

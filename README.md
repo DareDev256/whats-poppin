@@ -24,12 +24,12 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, shared helpers (scanRuns, createButton, createToolbarBtn, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API)
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 104 Vitest unit tests
+  game.test.js   — 117 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
 ```

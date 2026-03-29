@@ -1049,3 +1049,69 @@ describe('Multiplier badge logic', () => {
     expect(getTierColor(12)).toBe('#9b59b6');
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// SAFE DIVISION & SCORE CLAMPING (from safeDiv / safeScore)
+// ══════════════════════════════════════════════════════════════
+function safeDiv(numerator, divisor, fallback = 0) {
+  if (!divisor || !Number.isFinite(divisor)) return fallback;
+  const result = numerator / divisor;
+  return Number.isFinite(result) ? result : fallback;
+}
+
+function safeScore(n, max = 999999999) {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, max);
+}
+
+describe('safeDiv — division-by-zero guard', () => {
+  it('divides normally when divisor is valid', () => {
+    expect(safeDiv(100, 5)).toBe(20);
+    expect(safeDiv(7, 2)).toBe(3.5);
+  });
+  it('returns fallback when divisor is zero', () => {
+    expect(safeDiv(100, 0)).toBe(0);
+    expect(safeDiv(100, 0, -1)).toBe(-1);
+  });
+  it('returns fallback when divisor is NaN', () => {
+    expect(safeDiv(100, NaN)).toBe(0);
+  });
+  it('returns fallback when divisor is Infinity', () => {
+    expect(safeDiv(100, Infinity)).toBe(0);
+    expect(safeDiv(100, -Infinity)).toBe(0);
+  });
+  it('returns fallback when numerator is NaN (result non-finite)', () => {
+    expect(safeDiv(NaN, 5)).toBe(0);
+  });
+  it('returns fallback when result overflows to Infinity', () => {
+    expect(safeDiv(Number.MAX_VALUE, 0.0001)).toBe(0);
+  });
+  it('handles negative values correctly', () => {
+    expect(safeDiv(-10, 2)).toBe(-5);
+    expect(safeDiv(10, -2)).toBe(-5);
+  });
+});
+
+describe('safeScore — NaN/Infinity clamping', () => {
+  it('passes through valid scores', () => {
+    expect(safeScore(0)).toBe(0);
+    expect(safeScore(1500)).toBe(1500);
+    expect(safeScore(999999999)).toBe(999999999);
+  });
+  it('clamps NaN to 0', () => {
+    expect(safeScore(NaN)).toBe(0);
+  });
+  it('clamps Infinity to 0', () => {
+    expect(safeScore(Infinity)).toBe(0);
+    expect(safeScore(-Infinity)).toBe(0);
+  });
+  it('clamps negative values to 0', () => {
+    expect(safeScore(-100)).toBe(0);
+  });
+  it('clamps to custom max', () => {
+    expect(safeScore(5000, 1000)).toBe(1000);
+  });
+  it('returns 0 for undefined', () => {
+    expect(safeScore(undefined)).toBe(0);
+  });
+});
