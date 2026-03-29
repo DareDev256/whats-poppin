@@ -99,6 +99,55 @@ const CareerStats = {
 };
 
 // =============================================================
+// HALL OF FAME — Per-game leaderboard with top 10 ranked entries
+// =============================================================
+const HallOfFame = {
+  _key: 'whatspoppin_halloffame',
+  _maxEntries: 10,
+  _storage: SafeStorage,
+
+  /** Validate and clamp a single entry */
+  _sanitizeEntry(e) {
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    const score = typeof e.score === 'number' && Number.isFinite(e.score)
+      ? Math.min(Math.max(0, Math.floor(e.score)), 1e8) : 0;
+    if (score === 0) return null;
+    const streak = typeof e.streak === 'number' && Number.isFinite(e.streak)
+      ? Math.min(Math.max(0, Math.floor(e.streak)), 1000) : 0;
+    const mode = e.mode === 'zen' ? 'zen' : 'timed';
+    const date = typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date)
+      ? e.date : new Date().toISOString().slice(0, 10);
+    return { score, streak, mode, date };
+  },
+
+  load() {
+    const raw = this._storage.get(this._key, null);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(e => this._sanitizeEntry(e)).filter(Boolean).slice(0, this._maxEntries);
+    } catch (_) { return []; }
+  },
+
+  /** Record a game result. Returns { entries, rank } where rank is 1-indexed or -1 if not placed. */
+  record(score, streak, mode) {
+    const entry = this._sanitizeEntry({
+      score, streak, mode,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    if (!entry) return { entries: this.load(), rank: -1 };
+    const entries = this.load();
+    entries.push(entry);
+    entries.sort((a, b) => b.score - a.score);
+    const trimmed = entries.slice(0, this._maxEntries);
+    const rank = trimmed.findIndex(e => e === entry);
+    this._storage.set(this._key, JSON.stringify(trimmed));
+    return { entries: trimmed, rank: rank === -1 ? -1 : rank + 1 };
+  },
+};
+
+// =============================================================
 // SHARED UI UTILITIES
 // =============================================================
 
@@ -367,9 +416,19 @@ class TitleScene extends Phaser.Scene {
       });
     }
 
+    // Hall of Fame button
+    const hofEntries = HallOfFame.load();
+    if (hofEntries.length > 0) {
+      createButton(this, { x: width / 2, y: btnY + 320, width: btnWidth, height: btnHeight, radius: 12,
+        text: 'HALL OF FAME', subtext: `Top score: ${hofEntries[0].score.toLocaleString()} — ${hofEntries.length} entries`,
+        iconFn: (s, bx, by) => Icons.star(s, bx, by, 18, 0xf1c40f),
+        callback: () => this.scene.start('HallOfFameScene'),
+      });
+    }
+
     // First-time tutorial check
     if (!SafeStorage.get('whatspoppin_played', null)) {
-      const tutY = career.gamesPlayed > 0 ? btnY + 320 : btnY + 240;
+      const tutY = (hofEntries.length > 0 ? btnY + 400 : (career.gamesPlayed > 0 ? btnY + 320 : btnY + 240));
       createButton(this, { x: width / 2, y: tutY, width: btnWidth, height: btnHeight, radius: 12,
         text: 'TUTORIAL', subtext: 'Learn the basics step by step',
         callback: () => this.scene.start('TutorialScene'),
@@ -466,7 +525,7 @@ class GameOverScene extends Phaser.Scene {
 
   create(data) {
     const { width, height } = this.scale;
-    const { score, bestStreak, moves, isNewHigh, mode } = data;
+    const { score, bestStreak, moves, isNewHigh, mode, hofRank } = data;
     this._mode = mode || 'timed';
 
     // Background
@@ -538,6 +597,16 @@ class GameOverScene extends Phaser.Scene {
       });
     }
 
+    // Hall of Fame rank badge
+    if (hofRank > 0 && hofRank <= 10 && !isNewHigh) {
+      const rankText = hofRank <= 3 ? ['👑 #1', '⚔️ #2', '🔥 #3'][hofRank - 1] : `#${hofRank}`;
+      const rankBadge = this.add.text(width / 2, cardY + 100, `HALL OF FAME ${rankText}`, {
+        fontSize: '15px', fontFamily: UI_FONT, fontStyle: 'bold',
+        color: hofRank <= 3 ? '#f1c40f' : '#2ecc71',
+      }).setOrigin(0.5).setAlpha(0);
+      this.tweens.add({ targets: rankBadge, alpha: 1, duration: 400, delay: 1800 });
+    }
+
     // Stats
     const statsY = cardY + 140;
     this.add.text(width * 0.25, statsY, `MOVES\n${moves}`, {
@@ -573,14 +642,19 @@ class GameOverScene extends Phaser.Scene {
     }
 
     // Buttons
-    const btnY1 = height * 0.80;
+    const btnY1 = height * 0.78;
     const btnW = width - 80;
-    createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 42,
+    createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 38,
       text: 'PLAY AGAIN', color: '#2ecc71',
       iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
       callback: () => this.scene.start('GameScene', { mode: this._mode }),
     });
-    createButton(this, { x: width / 2, y: btnY1 + 55, width: btnW, height: 42,
+    createButton(this, { x: width / 2, y: btnY1 + 48, width: btnW, height: 38,
+      text: 'HALL OF FAME', color: '#f1c40f',
+      iconFn: (s, bx, by) => Icons.crown(s, bx, by, 14, 0xf1c40f),
+      callback: () => this.scene.start('HallOfFameScene', { highlightRank: hofRank, returnTo: 'TitleScene' }),
+    });
+    createButton(this, { x: width / 2, y: btnY1 + 96, width: btnW, height: 38,
       text: 'MENU', color: '#aaaaaa',
       iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
       callback: () => this.scene.start('TitleScene'),
@@ -610,6 +684,92 @@ class GameOverScene extends Phaser.Scene {
     }
   }
 
+}
+
+// =============================================================
+// HALL OF FAME SCENE — Top 10 ranked leaderboard
+// =============================================================
+class HallOfFameScene extends Phaser.Scene {
+  constructor() { super({ key: 'HallOfFameScene' }); }
+
+  create(data) {
+    const { width, height } = this.scale;
+    const highlightRank = data?.highlightRank ?? -1;
+
+    drawDarkGridBg(this);
+    drawSceneHeader(this, 'HALL OF FAME', { color: '#f1c40f' });
+
+    const entries = HallOfFame.load();
+    const bg = this.add.graphics();
+
+    if (entries.length === 0) {
+      this.add.text(width / 2, height * 0.45, 'No games recorded yet.\nPlay a round to claim the throne!', {
+        fontSize: '16px', fontFamily: UI_FONT, color: '#666666', align: 'center', lineSpacing: 8,
+      }).setOrigin(0.5);
+    } else {
+      const MEDAL_COLORS = [0xf1c40f, 0xbdc3c7, 0xcd7f32]; // gold, silver, bronze
+      const MEDAL_LABELS = ['👑', '⚔️', '🔥'];
+      const startY = 65;
+      const rowH = 48;
+      const padX = 16;
+
+      entries.forEach((entry, i) => {
+        const y = startY + i * rowH;
+        const isHighlight = (i + 1) === highlightRank;
+        const isTop3 = i < 3;
+
+        // Row background
+        drawCard(bg, {
+          x: padX, y, w: width - padX * 2, h: rowH - 4, radius: 8,
+          fillColor: isHighlight ? 0x1a2a1a : 0x12121f,
+          fillAlpha: isHighlight ? 1 : 0.85,
+          borderColor: isHighlight ? 0x2ecc71 : (isTop3 ? MEDAL_COLORS[i] : 0x2a2a4a),
+          borderAlpha: isHighlight ? 0.9 : (isTop3 ? 0.6 : 0.2),
+          borderWidth: isHighlight ? 2 : 1,
+        });
+
+        // Rank number
+        const rankColor = isTop3 ? Phaser.Display.Color.IntegerToColor(MEDAL_COLORS[i]).rgba : '#888888';
+        this.add.text(padX + 18, y + rowH / 2 - 2, isTop3 ? MEDAL_LABELS[i] : `#${i + 1}`, {
+          fontSize: isTop3 ? '18px' : '14px', fontFamily: UI_FONT,
+          fontStyle: 'bold', color: typeof rankColor === 'string' ? rankColor : '#f1c40f',
+        }).setOrigin(0.5);
+
+        // Score
+        this.add.text(padX + 52, y + 8, entry.score.toLocaleString(), {
+          fontSize: isTop3 ? '20px' : '16px', fontFamily: UI_FONT,
+          fontStyle: 'bold', color: isHighlight ? '#2ecc71' : (isTop3 ? '#ffffff' : '#cccccc'),
+        });
+
+        // Details line: streak + mode + date
+        const tierLabel = STREAK_LEVELS.filter(l => entry.streak >= l.min).pop();
+        const detail = `${entry.streak}x streak${tierLabel ? ' · ' + tierLabel.label : ''}  ·  ${entry.mode}  ·  ${entry.date}`;
+        this.add.text(padX + 52, y + 28, detail, {
+          fontSize: '10px', fontFamily: UI_FONT, color: '#777777',
+        });
+
+        // Highlight pulse for new entry
+        if (isHighlight) {
+          const glow = this.add.graphics();
+          drawCard(glow, {
+            x: padX, y, w: width - padX * 2, h: rowH - 4, radius: 8,
+            fillColor: 0x2ecc71, fillAlpha: 0.08, borderColor: 0x2ecc71, borderAlpha: 0, borderWidth: 0,
+          });
+          this.tweens.add({
+            targets: glow, alpha: 0, duration: 1200, yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
+          });
+        }
+      });
+    }
+
+    // Back button
+    createButton(this, {
+      x: width / 2, y: height - 40, width: 180, height: 42,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start(data?.returnTo || 'TitleScene'),
+    });
+  }
 }
 
 // =============================================================
@@ -1731,6 +1891,9 @@ class GameScene extends Phaser.Scene {
       bestStreak: this.bestStreak,
     });
 
+    // Record in Hall of Fame
+    const { rank: hofRank } = HallOfFame.record(this.score, this.bestStreak, this.gameMode);
+
     // Transition
     this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', {
@@ -1741,6 +1904,7 @@ class GameScene extends Phaser.Scene {
         career,
         newRecords,
         mode: this.gameMode,
+        hofRank,
       });
     });
   }
@@ -2569,7 +2733,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, ScanScene, GameScene, GameOverScene],
+  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, ScanScene, GameScene, GameOverScene, HallOfFameScene],
 };
 
 const game = new Phaser.Game(config);

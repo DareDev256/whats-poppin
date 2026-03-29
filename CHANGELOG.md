@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0] — 2026-03-29
+
+### Added
+- **Hall of Fame** — Top 10 ranked leaderboard scene with per-game history. Entries track score, best streak, game mode, and date
+- Gold (👑), silver (⚔️), and bronze (🔥) medal styling for top 3 entries with distinct border accents
+- New entries highlighted with animated green glow pulse and emphasized border
+- Each entry displays streak tier label (NICE/FIRE/GODLIKE/LEGENDARY) when applicable
+- Hall of Fame button on Game Over screen with your placement rank, and on Title screen with top score preview
+- Rank badge on Game Over card — shows Hall of Fame placement (#1–#10) with tier-appropriate styling
+- `HallOfFame` data object with schema-validated SafeStorage persistence — score clamped to 1e8, streak to 1000, mode whitelist (timed/zen), date regex validation
+- 9 unit tests covering ranked insertion, score sorting, 10-entry cap, rank calculation, zero-score rejection, type injection sanitization, overflow clamping, and mode whitelist enforcement
+
 ## [0.7.2] — 2026-03-29
 
 ### Fixed

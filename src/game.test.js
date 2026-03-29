@@ -1293,3 +1293,122 @@ describe('Pause system — scene clock freezing', () => {
     expect(pendingCallbacks.length).toBe(1);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// HALL OF FAME — Per-game leaderboard
+// ══════════════════════════════════════════════════════════════
+
+// Replicate HallOfFame logic for isolated testing
+const HallOfFame = {
+  _key: 'whatspoppin_halloffame',
+  _maxEntries: 10,
+  _storage: SafeStorage,
+
+  _sanitizeEntry(e) {
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    const score = typeof e.score === 'number' && Number.isFinite(e.score)
+      ? Math.min(Math.max(0, Math.floor(e.score)), 1e8) : 0;
+    if (score === 0) return null;
+    const streak = typeof e.streak === 'number' && Number.isFinite(e.streak)
+      ? Math.min(Math.max(0, Math.floor(e.streak)), 1000) : 0;
+    const mode = e.mode === 'zen' ? 'zen' : 'timed';
+    const date = typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date)
+      ? e.date : new Date().toISOString().slice(0, 10);
+    return { score, streak, mode, date };
+  },
+
+  load() {
+    const raw = this._storage.get(this._key, null);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(e => this._sanitizeEntry(e)).filter(Boolean).slice(0, this._maxEntries);
+    } catch (_) { return []; }
+  },
+
+  record(score, streak, mode) {
+    const entry = this._sanitizeEntry({
+      score, streak, mode,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    if (!entry) return { entries: this.load(), rank: -1 };
+    const entries = this.load();
+    entries.push(entry);
+    entries.sort((a, b) => b.score - a.score);
+    const trimmed = entries.slice(0, this._maxEntries);
+    const rank = trimmed.findIndex(e => e === entry);
+    this._storage.set(this._key, JSON.stringify(trimmed));
+    return { entries: trimmed, rank: rank === -1 ? -1 : rank + 1 };
+  },
+};
+
+describe('HallOfFame', () => {
+  beforeEach(() => SafeStorage._clear());
+
+  it('load returns empty array when no data exists', () => {
+    expect(HallOfFame.load()).toEqual([]);
+  });
+
+  it('record adds entry and returns rank 1 for first game', () => {
+    const { entries, rank } = HallOfFame.record(1000, 5, 'timed');
+    expect(entries.length).toBe(1);
+    expect(rank).toBe(1);
+    expect(entries[0].score).toBe(1000);
+    expect(entries[0].streak).toBe(5);
+    expect(entries[0].mode).toBe('timed');
+  });
+
+  it('entries are sorted by score descending', () => {
+    HallOfFame.record(500, 3, 'timed');
+    HallOfFame.record(1500, 8, 'timed');
+    HallOfFame.record(800, 4, 'zen');
+    const entries = HallOfFame.load();
+    expect(entries[0].score).toBe(1500);
+    expect(entries[1].score).toBe(800);
+    expect(entries[2].score).toBe(500);
+  });
+
+  it('limits to 10 entries (drops lowest)', () => {
+    for (let i = 1; i <= 12; i++) {
+      HallOfFame.record(i * 100, i, 'timed');
+    }
+    const entries = HallOfFame.load();
+    expect(entries.length).toBe(10);
+    expect(entries[9].score).toBe(300); // lowest kept is 300
+  });
+
+  it('returns correct rank for new entry', () => {
+    HallOfFame.record(1000, 5, 'timed');
+    HallOfFame.record(500, 3, 'timed');
+    const { rank } = HallOfFame.record(800, 4, 'zen');
+    expect(rank).toBe(2); // between 1000 and 500
+  });
+
+  it('rejects zero-score entries', () => {
+    const { entries, rank } = HallOfFame.record(0, 0, 'timed');
+    expect(entries.length).toBe(0);
+    expect(rank).toBe(-1);
+  });
+
+  it('sanitizes invalid entries on load (type injection)', () => {
+    SafeStorage.set('whatspoppin_halloffame', JSON.stringify([
+      { score: 'hacked', streak: null, mode: 42, date: true },
+      { score: 500, streak: 3, mode: 'timed', date: '2026-03-29' },
+    ]));
+    const entries = HallOfFame.load();
+    expect(entries.length).toBe(1); // first entry rejected (score 0)
+    expect(entries[0].score).toBe(500);
+  });
+
+  it('clamps score to 1e8 and streak to 1000', () => {
+    const { entries } = HallOfFame.record(999999999, 9999, 'timed');
+    expect(entries[0].score).toBe(1e8);
+    expect(entries[0].streak).toBe(1000);
+  });
+
+  it('defaults invalid mode to timed', () => {
+    const { entries } = HallOfFame.record(100, 1, 'hacked_mode');
+    expect(entries[0].mode).toBe('timed');
+  });
+});
