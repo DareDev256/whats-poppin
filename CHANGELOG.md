@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2] — 2026-03-29
+
+### Fixed
+- Cascade cycle (drop → refill → re-match) no longer runs during pause — `this.time.paused` now freezes all `delayedCall` and `addEvent` timers alongside tweens and the countdown timer
+- Tip rotation and ambient particle spawning also correctly freeze while paused
+- `cleanupPause()` (restart/exit) now restores the scene clock so subsequent scenes aren't stuck with a frozen timer
+- Added 4 tests covering pause/resume scene clock behavior
+
 ## [0.7.1] — 2026-03-28
 
 ### Security

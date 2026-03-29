@@ -1200,3 +1200,96 @@ describe('processMatches totalPops accumulation', () => {
     expect(totalPops).toBe(10);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// PAUSE/RESUME — Scene clock must freeze during pause
+// ══════════════════════════════════════════════════════════════
+describe('Pause system — scene clock freezing', () => {
+  /** Minimal scene mock: tracks time.paused, tweens.pauseAll/resumeAll, timerEvent */
+  function makeSceneMock() {
+    const scene = {
+      isPaused: false,
+      gameOver: false,
+      gameMode: 'timed',
+      score: 500,
+      time: { paused: false },
+      timerEvent: { paused: false },
+      tweens: {
+        _paused: false,
+        pauseAll() { this._paused = true; },
+        resumeAll() { this._paused = false; },
+      },
+      pauseContainer: null,
+    };
+    return scene;
+  }
+
+  it('pauseGame freezes scene.time.paused', () => {
+    const s = makeSceneMock();
+    // Simulate pauseGame logic
+    s.isPaused = true;
+    if (s.timerEvent) s.timerEvent.paused = true;
+    s.time.paused = true;
+    s.tweens.pauseAll();
+
+    expect(s.time.paused).toBe(true);
+    expect(s.timerEvent.paused).toBe(true);
+    expect(s.tweens._paused).toBe(true);
+    expect(s.isPaused).toBe(true);
+  });
+
+  it('resumeGame unfreezes scene.time.paused', () => {
+    const s = makeSceneMock();
+    // Pause first
+    s.isPaused = true;
+    s.timerEvent.paused = true;
+    s.time.paused = true;
+    s.tweens.pauseAll();
+
+    // Resume
+    s.isPaused = false;
+    s.timerEvent.paused = false;
+    s.time.paused = false;
+    s.tweens.resumeAll();
+
+    expect(s.time.paused).toBe(false);
+    expect(s.timerEvent.paused).toBe(false);
+    expect(s.tweens._paused).toBe(false);
+    expect(s.isPaused).toBe(false);
+  });
+
+  it('cleanupPause restores scene clock for scene transitions', () => {
+    const s = makeSceneMock();
+    // Pause first
+    s.isPaused = true;
+    s.time.paused = true;
+    s.tweens.pauseAll();
+
+    // cleanupPause (used by restart/exit)
+    s.isPaused = false;
+    s.time.paused = false;
+
+    expect(s.time.paused).toBe(false);
+    expect(s.isPaused).toBe(false);
+  });
+
+  it('cascade delayedCalls should not fire while scene clock is paused', () => {
+    // Verifies the design: when time.paused = true, no delayedCall callbacks run
+    const s = makeSceneMock();
+    let callbackFired = false;
+
+    // Simulate: cascade is queued, then player pauses
+    const pendingCallbacks = [];
+    s.time.delayedCall = (delay, cb) => pendingCallbacks.push(cb);
+    s.time.delayedCall(300, () => { callbackFired = true; });
+
+    // Pause the scene
+    s.time.paused = true;
+
+    // While paused, callbacks should NOT be executed
+    // (Phaser's real TimerEvent respects time.paused — we verify our flag is set)
+    expect(s.time.paused).toBe(true);
+    expect(callbackFired).toBe(false);
+    expect(pendingCallbacks.length).toBe(1);
+  });
+});

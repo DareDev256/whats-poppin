@@ -1511,6 +1511,10 @@ class GameScene extends Phaser.Scene {
     // Pause timer
     if (this.timerEvent) this.timerEvent.paused = true;
 
+    // Pause scene clock — freezes ALL delayedCall/addEvent timers
+    // (cascade cycle, tip rotation, ambient particles)
+    this.time.paused = true;
+
     // Pause all tweens
     this.tweens.pauseAll();
 
@@ -1626,6 +1630,10 @@ class GameScene extends Phaser.Scene {
   resumeGame() {
     this.isPaused = false;
     if (this.timerEvent) this.timerEvent.paused = false;
+
+    // Resume scene clock — unpauses all delayedCall/addEvent timers
+    this.time.paused = false;
+
     this.tweens.resumeAll();
     if (this.pauseContainer) {
       this.pauseContainer.destroy(true);
@@ -1635,6 +1643,10 @@ class GameScene extends Phaser.Scene {
 
   cleanupPause() {
     this.isPaused = false;
+
+    // Restore scene clock so restart/exit transitions aren't frozen
+    this.time.paused = false;
+
     if (this.pauseContainer) {
       this.pauseContainer.destroy(true);
       this.pauseContainer = null;
