@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.4] — 2026-03-30
+
+### Added
+- **32 new unit tests across 3 untested critical paths** — New `core.test.js` covering: `scanRuns` (10 tests: horizontal/vertical 3-match detection, end-of-row matches, null hole handling, two separate matches in one row, single-cell edge case, full-row match), `textStyle`/`TEXT_PRESETS` (5 tests: immutability, override merging without mutation, unknown preset error, fontFamily invariant, preset completeness), and `SafeStorage` (17 tests: round-trip string/int, tamper detection, cross-key replay attack prevention, scientific/hex/float/negative/overflow rejection in getInt, checksum determinism and key-binding, salt caching and format validation). Total test count: 149 passing
+
 ## [0.10.3] — 2026-03-30
 
 ### Changed
