@@ -27,7 +27,7 @@ src/
   game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
-  characters.js  — Procedurally drawn characters (Phaser Graphics API)
+  characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
   game.test.js   — 117 Vitest unit tests
 sw.js            — Service worker with CSP header injection + offline fallback

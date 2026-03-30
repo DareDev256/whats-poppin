@@ -2,6 +2,70 @@
 // Characters appear in the hype bar during streak combos
 // Drawn via Phaser 3 Graphics API — anime/hip-hop/urban style
 
+// =============================================================
+// SHARED DRAWING HELPERS — extracted from per-character duplication
+// =============================================================
+
+/**
+ * Draw one stylized anime eye with sclera, iris, pupil, and highlight.
+ * Replaces ~10 lines of duplicated drawing code per eye across 4 characters.
+ * @param {Phaser.GameObjects.Graphics} g — graphics context
+ * @param {number} cx — eye center X
+ * @param {number} cy — eye center Y
+ * @param {number} s  — global scale factor
+ * @param {object} opts — per-character variation
+ * @param {number} opts.irisColor   — hex color for iris (e.g. 0xff4400)
+ * @param {number} [opts.w=8]       — sclera ellipse width (before scale)
+ * @param {number} [opts.h=5]       — sclera ellipse height (before scale)
+ * @param {number} [opts.irisR=2.5] — iris radius
+ * @param {number} [opts.pupilR=1.2]— pupil radius
+ * @param {number} [opts.hlR=0.8]   — highlight radius
+ * @param {number} [opts.hlColor=0xffffff] — highlight color
+ * @param {number} [opts.hlAlpha=0.9]      — highlight alpha
+ * @param {number} [opts.irisOff=0] — horizontal offset of iris from center
+ * @param {{color:number, alpha:number, r:number, dx:number, dy:number}} [opts.extra]
+ *        — optional second highlight (Empress uses a purple sub-glow)
+ */
+function drawEye(g, cx, cy, s, opts) {
+  const {
+    irisColor, w = 8, h = 5, irisR = 2.5, pupilR = 1.2,
+    hlR = 0.8, hlColor = 0xffffff, hlAlpha = 0.9,
+    irisOff = 0, extra = null,
+  } = opts;
+
+  // Sclera
+  g.fillStyle(0xffffff, 1);
+  g.fillEllipse(cx, cy, w * s, h * s);
+  // Iris
+  g.fillStyle(irisColor, 1);
+  g.fillCircle(cx + irisOff * s, cy, irisR * s);
+  // Pupil
+  g.fillStyle(0x000000, 1);
+  g.fillCircle(cx + irisOff * s, cy, pupilR * s);
+  // Primary highlight
+  g.fillStyle(hlColor, hlAlpha);
+  g.fillCircle(cx + (irisOff + 1) * s, cy - 1 * s, hlR * s);
+  // Optional secondary highlight (e.g. Empress purple sub-glow)
+  if (extra) {
+    g.fillStyle(extra.color, extra.alpha);
+    g.fillCircle(cx + (extra.dx || 0) * s, cy + (extra.dy || 0) * s, (extra.r || 0.6) * s);
+  }
+}
+
+/**
+ * Draw a ground shadow ellipse beneath a character.
+ * @param {Phaser.GameObjects.Graphics} g
+ * @param {number} x — center X
+ * @param {number} y — baseline Y position
+ * @param {number} s — scale
+ * @param {number} [w=36] — ellipse width
+ * @param {number} [alpha=0.15] — shadow opacity
+ */
+function drawShadow(g, x, y, s, w = 36, alpha = 0.15) {
+  g.fillStyle(0x000000, alpha);
+  g.fillEllipse(x, y + 78 * s, w * s, 8 * s);
+}
+
 window.characters = {
 
   // ─────────────────────────────────────────────
@@ -18,8 +82,7 @@ window.characters = {
       const s = scale;
 
       // Shadow under character
-      graphics.fillStyle(0x000000, 0.15);
-      graphics.fillEllipse(x, y + 78 * s, 36 * s, 8 * s);
+      drawShadow(graphics, x, y, s);
 
       // --- HOODIE BODY ---
       // Main hoodie shape
@@ -94,21 +157,10 @@ window.characters = {
       graphics.fillCircle(x, y - 2 * s, 5 * s);
 
       // --- FACE ---
-      // Eyes (almond shaped — drawn as ellipse + highlight)
-      // Left eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x - 5 * s, y + 11 * s, 7 * s, 4.5 * s);
-      graphics.fillStyle(0x1a1a2e, 1);
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 2.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x - 3.2 * s, y + 10.2 * s, 0.8 * s);
-      // Right eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x + 5 * s, y + 11 * s, 7 * s, 4.5 * s);
-      graphics.fillStyle(0x1a1a2e, 1);
-      graphics.fillCircle(x + 4 * s, y + 11 * s, 2.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x + 4.8 * s, y + 10.2 * s, 0.8 * s);
+      // Eyes (almond shaped — Kira has dark iris, no visible pupil ring)
+      const kiraEye = { irisColor: 0x1a1a2e, w: 7, h: 4.5, irisR: 2.2, pupilR: 0, hlR: 0.8 };
+      drawEye(graphics, x - 5 * s, y + 11 * s, s, { ...kiraEye, irisOff: 1 });
+      drawEye(graphics, x + 5 * s, y + 11 * s, s, { ...kiraEye, irisOff: -1 });
       // Eyebrows (relaxed)
       graphics.lineStyle(2 * s, 0x1a1a2e, 0.8);
       graphics.lineBetween(x - 8 * s, y + 7.5 * s, x - 2 * s, y + 8 * s);
@@ -178,8 +230,7 @@ window.characters = {
       graphics.fillCircle(x, y + 35 * s, 40 * s);
 
       // Shadow
-      graphics.fillStyle(0x000000, 0.15);
-      graphics.fillEllipse(x, y + 78 * s, 36 * s, 8 * s);
+      drawShadow(graphics, x, y, s);
 
       // --- JACKET BODY ---
       // Main jacket
@@ -329,25 +380,10 @@ window.characters = {
       );
 
       // --- FACE ---
-      // Fierce eyes (angular)
-      // Left eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x - 5 * s, y + 11 * s, 8 * s, 5 * s);
-      graphics.fillStyle(0xff4400, 1); // orange iris
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 2.5 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 1.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x - 3 * s, y + 10 * s, 0.8 * s);
-      // Right eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x + 5 * s, y + 11 * s, 8 * s, 5 * s);
-      graphics.fillStyle(0xff4400, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 2.5 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 1.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x + 7 * s, y + 10 * s, 0.8 * s);
+      // Fierce eyes (angular, orange iris)
+      const blazeEye = { irisColor: 0xff4400 };
+      drawEye(graphics, x - 5 * s, y + 11 * s, s, { ...blazeEye, irisOff: 1 });
+      drawEye(graphics, x + 5 * s, y + 11 * s, s, { ...blazeEye, irisOff: 1 });
       // Fierce eyebrows (angled down toward center)
       graphics.lineStyle(2.5 * s, 0x1a1a1a, 1);
       graphics.lineBetween(x - 9 * s, y + 6 * s, x - 2 * s, y + 8.5 * s);
@@ -399,8 +435,7 @@ window.characters = {
       graphics.fillCircle(x + 20 * s, y + 50 * s, 1.5 * s);
 
       // Shadow
-      graphics.fillStyle(0x000000, 0.2);
-      graphics.fillEllipse(x, y + 78 * s, 40 * s, 8 * s);
+      drawShadow(graphics, x, y, s, 40, 0.2);
 
       // --- KATANA (on back, diagonal) ---
       // Scabbard
@@ -517,25 +552,10 @@ window.characters = {
       graphics.fillStyle(0x8b0000, 1);
       graphics.fillRect(x - 1 * s, y + 18 * s, 2 * s, 4 * s);
 
-      // Eyes (narrow, intense)
-      // Left eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x - 5 * s, y + 11 * s, 8 * s, 3.5 * s);
-      graphics.fillStyle(0xcc0000, 1); // red iris
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 1.8 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 0.9 * s);
-      graphics.fillStyle(0xff4444, 0.8);
-      graphics.fillCircle(x - 3 * s, y + 10.5 * s, 0.6 * s);
-      // Right eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x + 5 * s, y + 11 * s, 8 * s, 3.5 * s);
-      graphics.fillStyle(0xcc0000, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 1.8 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 0.9 * s);
-      graphics.fillStyle(0xff4444, 0.8);
-      graphics.fillCircle(x + 7 * s, y + 10.5 * s, 0.6 * s);
+      // Eyes (narrow, intense — red iris, smaller highlight)
+      const roninEye = { irisColor: 0xcc0000, h: 3.5, irisR: 1.8, pupilR: 0.9, hlR: 0.6, hlColor: 0xff4444, hlAlpha: 0.8 };
+      drawEye(graphics, x - 5 * s, y + 11 * s, s, { ...roninEye, irisOff: 1 });
+      drawEye(graphics, x + 5 * s, y + 11 * s, s, { ...roninEye, irisOff: 1 });
       // Eyebrows (sharp, severe)
       graphics.lineStyle(2 * s, 0x0d0d0d, 1);
       graphics.lineBetween(x - 10 * s, y + 7 * s, x - 2 * s, y + 9 * s);
@@ -582,8 +602,7 @@ window.characters = {
       graphics.fillCircle(x, y + 35 * s, 42 * s);
 
       // Shadow
-      graphics.fillStyle(0x000000, 0.2);
-      graphics.fillEllipse(x, y + 79 * s, 44 * s, 8 * s);
+      drawShadow(graphics, x, y, s, 44, 0.2);
 
       // --- CAPE (behind body, flowing) ---
       graphics.fillStyle(0x3a0066, 1);
@@ -796,29 +815,13 @@ window.characters = {
       graphics.fillRect(x - 11 * s, y - 0.5 * s, 22 * s, 2 * s);
 
       // --- FACE ---
-      // Eyes (confident, piercing, larger)
-      // Left eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x - 5 * s, y + 11 * s, 8 * s, 5 * s);
-      graphics.fillStyle(0x9900ff, 1); // purple iris
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 2.5 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x - 4 * s, y + 11 * s, 1.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x - 3 * s, y + 10 * s, 0.9 * s);
-      graphics.fillStyle(0xcc88ff, 0.4);
-      graphics.fillCircle(x - 5 * s, y + 12 * s, 0.6 * s);
-      // Right eye
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillEllipse(x + 5 * s, y + 11 * s, 8 * s, 5 * s);
-      graphics.fillStyle(0x9900ff, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 2.5 * s);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillCircle(x + 6 * s, y + 11 * s, 1.2 * s);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(x + 7 * s, y + 10 * s, 0.9 * s);
-      graphics.fillStyle(0xcc88ff, 0.4);
-      graphics.fillCircle(x + 5 * s, y + 12 * s, 0.6 * s);
+      // Eyes (confident, piercing — purple iris with sub-glow)
+      const empressEye = {
+        irisColor: 0x9900ff, hlR: 0.9,
+        extra: { color: 0xcc88ff, alpha: 0.4, r: 0.6, dy: 1 },
+      };
+      drawEye(graphics, x - 5 * s, y + 11 * s, s, { ...empressEye, irisOff: 1, extra: { ...empressEye.extra, dx: -1 } });
+      drawEye(graphics, x + 5 * s, y + 11 * s, s, { ...empressEye, irisOff: 1, extra: { ...empressEye.extra, dx: 0 } });
 
       // Eyelashes (thick, dramatic)
       graphics.lineStyle(2 * s, 0x1a1a2e, 1);

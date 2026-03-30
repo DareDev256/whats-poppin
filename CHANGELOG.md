@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.2] — 2026-03-30
+
+### Changed
+- **Character drawing: extract `drawEye()` and `drawShadow()` helpers** — Consolidated ~70 lines of duplicated eye-drawing code (sclera → iris → pupil → highlight) across all 4 characters (Kira, Blaze, Ronin, Empress) into a single parameterized `drawEye()` function. Each character's eye personality (Kira's dark almond eyes, Blaze's fierce orange, Ronin's narrow red slits, Empress's piercing purple with sub-glow) is now expressed as a compact config object instead of 16-20 raw lines. Also extracted `drawShadow()` for the 4 identical ground-shadow ellipses. Net reduction of ~55 lines with zero visual change
+
 ## [0.10.1] — 2026-03-29
 
 ### Fixed
