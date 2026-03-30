@@ -133,6 +133,47 @@ function scanRuns(grid, outerLen, innerLen, cellAt, coordOf) {
 }
 
 // =============================================================
+// TEXT STYLE PRESETS
+// =============================================================
+
+/**
+ * Named typography presets — single source of truth for all text styles.
+ * Each preset captures a recurring visual pattern (heading, label, etc.)
+ * so individual add.text() calls stay lean and consistent.
+ */
+const TEXT_PRESETS = {
+  /** Bold stroked heading — titles, section headers, milestone banners */
+  heading:  { fontFamily: UI_FONT, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4, fontSize: '28px', color: '#ffffff' },
+  /** Stats row — centered muted text for stat summaries */
+  stat:     { fontFamily: UI_FONT, fontSize: '14px', color: '#aaaaaa', align: 'center' },
+  /** Tiny uppercase label — stat keys, captions */
+  label:    { fontFamily: UI_FONT, fontSize: '10px', color: '#666666', letterSpacing: 2 },
+  /** Subtle secondary text — credits, sub-values, skip links */
+  muted:    { fontFamily: UI_FONT, fontSize: '12px', color: '#444444' },
+  /** Prominent score/value — bold, gold, stroked */
+  accent:   { fontFamily: UI_FONT, fontStyle: 'bold', fontSize: '20px', color: '#f1c40f', stroke: '#000000', strokeThickness: 3 },
+  /** Body / description — readable, muted, wrappable */
+  body:     { fontFamily: UI_FONT, fontSize: '14px', color: '#bbbbbb', align: 'center', lineSpacing: 6 },
+  /** Floating score/power-up popup — bold, heavy stroke */
+  popup:    { fontFamily: UI_FONT, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 },
+  /** Badge — small bold accent with light stroke */
+  badge:    { fontFamily: UI_FONT, fontSize: '13px', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2 },
+};
+
+/**
+ * Build a Phaser text style object from a named preset + optional overrides.
+ * Eliminates repeated fontFamily / stroke / fontStyle boilerplate.
+ * @param {string} preset — key in TEXT_PRESETS
+ * @param {object} [overrides] — per-call property overrides
+ * @returns {object} merged style config for this.add.text()
+ */
+function textStyle(preset, overrides) {
+  const base = TEXT_PRESETS[preset];
+  if (!base) throw new Error(`Unknown text preset: "${preset}"`);
+  return overrides ? { ...base, ...overrides } : { ...base };
+}
+
+// =============================================================
 // SHARED UI UTILITIES
 // =============================================================
 
@@ -357,12 +398,8 @@ class TitleScene extends Phaser.Scene {
     });
 
     // Tagline
-    this.add.text(width / 2, height * 0.36, 'match  /  combo  /  dominate', {
-      fontSize: '14px',
-      fontFamily: UI_FONT,
-      color: '#666666',
-      letterSpacing: 2,
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.36, 'match  /  combo  /  dominate',
+      textStyle('label', { fontSize: '14px' })).setOrigin(0.5);
 
     // Mode buttons
     const btnY = height * 0.47;
@@ -410,14 +447,8 @@ class TitleScene extends Phaser.Scene {
     const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
     if (highScore > 0) {
       Icons.star(this, width / 2 - 100, height * 0.85, 14, 0xf1c40f);
-      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`, {
-        fontSize: '18px',
-        fontFamily: UI_FONT,
-        fontStyle: 'bold',
-        color: '#f1c40f',
-        stroke: '#000000',
-        strokeThickness: 3,
-      }).setOrigin(0.5);
+      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`,
+        textStyle('accent', { fontSize: '18px' })).setOrigin(0.5);
     }
 
     // Best grade badges (per mode)
@@ -428,18 +459,14 @@ class TitleScene extends Phaser.Scene {
       const badgeY = height * 0.89;
       if (bestGradeTimed) {
         const gInfo = GRADES.find(g => g.grade === bestGradeTimed) || getGrade(0, 0);
-        this.add.text(badgeX, badgeY, `TIMED: ${bestGradeTimed}`, {
-          fontSize: '13px', fontFamily: UI_FONT, fontStyle: 'bold',
-          color: gInfo.color, stroke: '#000000', strokeThickness: 2,
-        }).setOrigin(0.5);
+        this.add.text(badgeX, badgeY, `TIMED: ${bestGradeTimed}`,
+          textStyle('badge', { color: gInfo.color })).setOrigin(0.5);
         badgeX += 70;
       }
       if (bestGradeZen) {
         const gInfo = GRADES.find(g => g.grade === bestGradeZen) || getGrade(0, 0);
-        this.add.text(badgeX, badgeY, `ZEN: ${bestGradeZen}`, {
-          fontSize: '13px', fontFamily: UI_FONT, fontStyle: 'bold',
-          color: gInfo.color, stroke: '#000000', strokeThickness: 2,
-        }).setOrigin(0.5);
+        this.add.text(badgeX, badgeY, `ZEN: ${bestGradeZen}`,
+          textStyle('badge', { color: gInfo.color })).setOrigin(0.5);
       }
     }
 
@@ -460,11 +487,7 @@ class TitleScene extends Phaser.Scene {
     });
 
     // Credits
-    this.add.text(width / 2, height * 0.93, 'by DareDev256', {
-      fontSize: '12px',
-      fontFamily: UI_FONT,
-      color: '#444444',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.93, 'by DareDev256', textStyle('muted')).setOrigin(0.5);
 
     // Init audio on first interaction
     this.input.once('pointerdown', () => {
@@ -498,14 +521,9 @@ class GameOverScene extends Phaser.Scene {
     bg.fillRect(0, 0, width, height);
 
     // Game Over text
-    const goText = this.add.text(width / 2, height * 0.12, 'TIME\'S UP', {
-      fontSize: '42px',
-      fontFamily: UI_FONT,
-      fontStyle: 'bold',
-      color: '#e74c3c',
-      stroke: '#000000',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setScale(0);
+    const goText = this.add.text(width / 2, height * 0.12, 'TIME\'S UP',
+      textStyle('heading', { fontSize: '42px', color: '#e74c3c', strokeThickness: 5 }),
+    ).setOrigin(0.5).setScale(0);
 
     this.tweens.add({
       targets: goText,
@@ -523,15 +541,10 @@ class GameOverScene extends Phaser.Scene {
     bg.strokeRoundedRect(20, cardY, width - 40, cardH, 16);
 
     // Score
-    this.add.text(width / 2, cardY + 30, 'FINAL SCORE', {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#888888',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, cardY + 30, 'FINAL SCORE', textStyle('stat', { color: '#888888' })).setOrigin(0.5);
 
-    const scoreText = this.add.text(width / 2, cardY + 65, '0', {
-      fontSize: '48px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    const scoreText = this.add.text(width / 2, cardY + 65, '0',
+      textStyle('popup', { fontSize: '48px', color: '#f1c40f' })).setOrigin(0.5);
 
     // Animate score counting up
     let displayScore = 0;
@@ -548,10 +561,8 @@ class GameOverScene extends Phaser.Scene {
     if (isNewHigh) {
       Icons.star(this, width / 2 - 95, cardY + 100, 12, 0xf1c40f);
       Icons.star(this, width / 2 + 95, cardY + 100, 12, 0xf1c40f);
-      const badge = this.add.text(width / 2, cardY + 100, 'NEW HIGH SCORE', {
-        fontSize: '18px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: '#f1c40f',
-      }).setOrigin(0.5).setAlpha(0);
+      const badge = this.add.text(width / 2, cardY + 100, 'NEW HIGH SCORE',
+        textStyle('badge', { fontSize: '18px', color: '#f1c40f', stroke: '', strokeThickness: 0 })).setOrigin(0.5).setAlpha(0);
 
       this.tweens.add({
         targets: badge, alpha: 1, duration: 300, delay: 1800,
@@ -564,21 +575,10 @@ class GameOverScene extends Phaser.Scene {
 
     // Stats
     const statsY = cardY + 140;
-    this.add.text(width * 0.25, statsY, `MOVES\n${moves}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
-
-    this.add.text(width * 0.5, statsY, `BEST STREAK\n${bestStreak}x`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
-
+    this.add.text(width * 0.25, statsY, `MOVES\n${moves}`, textStyle('stat')).setOrigin(0.5);
+    this.add.text(width * 0.5, statsY, `BEST STREAK\n${bestStreak}x`, textStyle('stat')).setOrigin(0.5);
     const avgPerMove = Math.round(safeDiv(score, moves));
-    this.add.text(width * 0.75, statsY, `AVG/MOVE\n${avgPerMove}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    this.add.text(width * 0.75, statsY, `AVG/MOVE\n${avgPerMove}`, textStyle('stat')).setOrigin(0.5);
 
     // ---- PERFORMANCE GRADE ----
     const gradeInfo = getGrade(score, bestStreak);
@@ -594,17 +594,14 @@ class GameOverScene extends Phaser.Scene {
     gradeGlow.setAlpha(0);
 
     // Grade letter
-    const gradeLetter = this.add.text(width / 2, gradeY, gradeInfo.grade, {
-      fontSize: '56px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: gradeInfo.color,
-      stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(9).setScale(0);
+    const gradeLetter = this.add.text(width / 2, gradeY, gradeInfo.grade,
+      textStyle('heading', { fontSize: '56px', color: gradeInfo.color, strokeThickness: 5 }),
+    ).setOrigin(0.5).setDepth(9).setScale(0);
 
     // Grade label below
-    const gradeLabel = this.add.text(width / 2, gradeY + 36, gradeInfo.label, {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: gradeInfo.color, letterSpacing: 3,
-    }).setOrigin(0.5).setDepth(9).setAlpha(0);
+    const gradeLabel = this.add.text(width / 2, gradeY + 36, gradeInfo.label,
+      textStyle('badge', { fontSize: '12px', color: gradeInfo.color, letterSpacing: 3, stroke: '', strokeThickness: 0 }),
+    ).setOrigin(0.5).setDepth(9).setAlpha(0);
 
     // Dramatic reveal — scale in with bounce after score counts up
     this.tweens.add({
@@ -881,17 +878,12 @@ class TutorialScene extends Phaser.Scene {
 
       const step = steps[idx];
 
-      const title = this.add.text(width / 2, height * 0.15, step.title, {
-        fontSize: '28px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-      }).setOrigin(0.5);
+      const title = this.add.text(width / 2, height * 0.15, step.title,
+        textStyle('heading')).setOrigin(0.5);
       this.stepObjects.push(title);
 
-      const desc = this.add.text(width / 2, height * 0.62, step.desc, {
-        fontSize: '14px', fontFamily: UI_FONT,
-        color: '#bbbbbb', align: 'center', lineSpacing: 6,
-        wordWrap: { width: width - 60 },
-      }).setOrigin(0.5, 0);
+      const desc = this.add.text(width / 2, height * 0.62, step.desc,
+        textStyle('body', { wordWrap: { width: width - 60 } })).setOrigin(0.5, 0);
       this.stepObjects.push(desc);
 
       const drawn = step.draw(this);
@@ -922,10 +914,8 @@ class TutorialScene extends Phaser.Scene {
       this.nextLabel.setText(isLast ? 'LET\'S GO' : 'NEXT');
     };
 
-    this.nextLabel = this.add.text(width / 2, navY, 'NEXT', {
-      fontSize: '16px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f',
-    }).setOrigin(0.5);
+    this.nextLabel = this.add.text(width / 2, navY, 'NEXT',
+      textStyle('accent', { fontSize: '16px', stroke: '', strokeThickness: 0 })).setOrigin(0.5);
 
     drawNextBtn(false);
 
@@ -942,10 +932,8 @@ class TutorialScene extends Phaser.Scene {
     });
 
     // Skip
-    const skip = this.add.text(width - 20, 25, 'SKIP', {
-      fontSize: '13px', fontFamily: UI_FONT,
-      color: '#555555',
-    }).setOrigin(1, 0).setInteractive();
+    const skip = this.add.text(width - 20, 25, 'SKIP',
+      textStyle('muted', { fontSize: '13px', color: '#555555' })).setOrigin(1, 0).setInteractive();
     skip.on('pointerdown', () => {
       SafeStorage.set('whatspoppin_played', '1');
       this.scene.start('TitleScene');
@@ -967,10 +955,7 @@ class TipsScene extends Phaser.Scene {
     bg.fillRect(0, 0, width, height);
 
     // Title
-    this.add.text(width / 2, 30, 'HOW TO PLAY', {
-      fontSize: '28px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    this.add.text(width / 2, 30, 'HOW TO PLAY', textStyle('heading')).setOrigin(0.5);
 
     const sections = [
       {
@@ -1021,17 +1006,12 @@ class TipsScene extends Phaser.Scene {
       bg.lineStyle(1, Phaser.Display.Color.HexStringToColor(section.color).color, 0.3);
       bg.strokeRoundedRect(15, yPos, width - 30, cardH, 10);
 
-      this.add.text(25, yPos + 8, section.title, {
-        fontSize: '13px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: section.color,
-      });
+      this.add.text(25, yPos + 8, section.title,
+        textStyle('badge', { color: section.color, stroke: '', strokeThickness: 0 }));
 
       section.items.forEach((item, i) => {
-        this.add.text(25, yPos + 28 + i * 22, `•  ${item}`, {
-          fontSize: '12px', fontFamily: UI_FONT,
-          color: '#bbbbbb',
-          wordWrap: { width: width - 60 },
-        });
+        this.add.text(25, yPos + 28 + i * 22, `•  ${item}`,
+          textStyle('muted', { color: '#bbbbbb', wordWrap: { width: width - 60 } }));
       });
 
       yPos += cardH + 8;
@@ -1046,10 +1026,8 @@ class TipsScene extends Phaser.Scene {
     backBg.strokeRoundedRect(width / 2 - 80, backY - 18, 160, 36, 8);
 
     Icons.back(this, width / 2 - 35, backY, 14, 0xffffff);
-    this.add.text(width / 2 + 5, backY, 'BACK', {
-      fontSize: '16px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff',
-    }).setOrigin(0.5);
+    this.add.text(width / 2 + 5, backY, 'BACK',
+      textStyle('heading', { fontSize: '16px', stroke: '', strokeThickness: 0 })).setOrigin(0.5);
 
     const backHit = this.add.rectangle(width / 2, backY, 160, 36).setInteractive().setAlpha(0.001);
     backHit.on('pointerdown', () => this.scene.start('TitleScene'));
@@ -1067,14 +1045,11 @@ class StatsScene extends Phaser.Scene {
     drawDarkGridBg(this);
 
     // Header
-    this.add.text(width / 2, height * 0.07, 'YOUR LEGACY', {
-      fontSize: '28px', fontFamily: UI_FONT, fontStyle: 'bold',
-      color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.07, 'YOUR LEGACY',
+      textStyle('heading', { color: '#f1c40f' })).setOrigin(0.5);
 
-    this.add.text(width / 2, height * 0.12, 'lifetime stats', {
-      fontSize: '12px', fontFamily: UI_FONT, color: '#555555', letterSpacing: 3,
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.12, 'lifetime stats',
+      textStyle('muted', { color: '#555555', letterSpacing: 3 })).setOrigin(0.5);
 
     // Load all stats from SafeStorage
     const stats = {
@@ -1118,15 +1093,12 @@ class StatsScene extends Phaser.Scene {
       const hexColor = Phaser.Display.Color.HexStringToColor(row.color).color;
 
       // Label
-      this.add.text(cardX + 16, ry, row.label, {
-        fontSize: '10px', fontFamily: UI_FONT, color: '#666666', letterSpacing: 2,
-      });
+      this.add.text(cardX + 16, ry, row.label, textStyle('label'));
 
       // Value (animate counting up)
       const numericVal = typeof row.value === 'number' ? row.value : row.raw;
-      const valText = this.add.text(cardX + cardW - 16, ry, '0', {
-        fontSize: '18px', fontFamily: UI_FONT, fontStyle: 'bold', color: row.color,
-      }).setOrigin(1, 0);
+      const valText = this.add.text(cardX + cardW - 16, ry, '0',
+        textStyle('accent', { fontSize: '18px', color: row.color, stroke: '', strokeThickness: 0 })).setOrigin(1, 0);
 
       if (typeof row.value === 'number' && row.value > 0) {
         this.tweens.addCounter({
@@ -1140,9 +1112,7 @@ class StatsScene extends Phaser.Scene {
 
       // Subtitle
       if (row.sub) {
-        this.add.text(cardX + 16, ry + 18, row.sub, {
-          fontSize: '10px', fontFamily: UI_FONT, color: '#444444',
-        });
+        this.add.text(cardX + 16, ry + 18, row.sub, textStyle('label', { color: '#444444' }));
       }
 
       // Animated bar
@@ -1268,23 +1238,17 @@ class GameScene extends Phaser.Scene {
     hypeBackground.strokeRoundedRect(10, 8, width - 20, HYPE_BAR_HEIGHT - 16, 12);
     this.hypeBar.add(hypeBackground);
 
-    this.streakText = this.add.text(width / 2, 35, '', {
-      fontSize: '28px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5).setAlpha(0);
+    this.streakText = this.add.text(width / 2, 35, '',
+      textStyle('heading')).setOrigin(0.5).setAlpha(0);
     this.hypeBar.add(this.streakText);
 
-    this.adlibText = this.add.text(width / 2, 75, '', {
-      fontSize: '20px', fontFamily: UI_FONT,
-      fontStyle: 'italic', color: '#aaaaaa',
-    }).setOrigin(0.5).setAlpha(0);
+    this.adlibText = this.add.text(width / 2, 75, '',
+      textStyle('stat', { fontSize: '20px', fontStyle: 'italic' })).setOrigin(0.5).setAlpha(0);
     this.hypeBar.add(this.adlibText);
 
     // Character name display
-    this.charNameText = this.add.text(20, 95, '', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      color: '#666666', fontStyle: 'italic',
-    }).setAlpha(0);
+    this.charNameText = this.add.text(20, 95, '',
+      textStyle('muted', { color: '#666666', fontStyle: 'italic' })).setAlpha(0);
     this.hypeBar.add(this.charNameText);
 
     this.characterGfx = this.add.graphics();
@@ -1297,10 +1261,8 @@ class GameScene extends Phaser.Scene {
       this.timerBg.fillStyle(0x2ecc71, 1);
       this.timerBg.fillRect(0, HYPE_BAR_HEIGHT, width, 4);
 
-      this.timerText = this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, `${GAME_TIME}s`, {
-        fontSize: '16px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: '#2ecc71', stroke: '#000000', strokeThickness: 2,
-      }).setOrigin(0.5, 0);
+      this.timerText = this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, `${GAME_TIME}s`,
+        textStyle('badge', { fontSize: '16px', color: '#2ecc71' })).setOrigin(0.5, 0);
 
       // Timer event
       this.timerEvent = this.time.addEvent({
@@ -1321,27 +1283,18 @@ class GameScene extends Phaser.Scene {
     scoreBg.lineStyle(1, 0x1a1a2e, 0.5);
     scoreBg.lineBetween(0, height - 65, width, height - 65);
 
-    this.scoreText = this.add.text(20, height - 55, 'SCORE: 0', {
-      fontSize: '20px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 3,
-    });
+    this.scoreText = this.add.text(20, height - 55, 'SCORE: 0', textStyle('accent'));
 
-    this.streakCounter = this.add.text(width - 20, height - 55, '', {
-      fontSize: '16px', fontFamily: UI_FONT,
-      color: '#888888',
-    }).setOrigin(1, 0);
+    this.streakCounter = this.add.text(width - 20, height - 55, '',
+      textStyle('stat', { fontSize: '16px', color: '#888888' })).setOrigin(1, 0);
 
-    this.bestStreakText = this.add.text(width - 20, height - 33, '', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      color: '#555555',
-    }).setOrigin(1, 0);
+    this.bestStreakText = this.add.text(width - 20, height - 33, '',
+      textStyle('muted', { color: '#555555' })).setOrigin(1, 0);
 
     // Mode indicator
     if (this.gameMode === 'zen') {
-      this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, 'ZEN MODE', {
-        fontSize: '12px', fontFamily: UI_FONT,
-        color: '#3498db',
-      }).setOrigin(0.5, 0);
+      this.add.text(width / 2, HYPE_BAR_HEIGHT + 12, 'ZEN MODE',
+        textStyle('muted', { color: '#3498db' })).setOrigin(0.5, 0);
     }
 
     // ---- POWER-UP OVERLAY (drawn each frame for pulsing effects) ----
@@ -1387,10 +1340,8 @@ class GameScene extends Phaser.Scene {
     this.hintBtnBg = hintBtn.bg;
     this.hintIconGfx = hintBtn.icon;
 
-    this.hintCountText = this.add.text(hintBtnX + 12, tbY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`, {
-      fontSize: '10px', fontFamily: UI_FONT, fontStyle: 'bold',
-      color: '#f1c40f', stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(42);
+    this.hintCountText = this.add.text(hintBtnX + 12, tbY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`,
+      textStyle('badge', { fontSize: '10px', color: '#f1c40f' })).setOrigin(0.5).setDepth(42);
 
     // Mute
     const muteBtn = createToolbarBtn(this, {
@@ -1429,11 +1380,9 @@ class GameScene extends Phaser.Scene {
 
     // ---- TIPS DISPLAY (shows rotating tips at bottom) ----
     this.tipIndex = Phaser.Math.Between(0, TIPS.length - 1);
-    this.tipText = this.add.text(width / 2, height - 12, TIPS[this.tipIndex], {
-      fontSize: '10px', fontFamily: UI_FONT,
-      color: '#444444', fontStyle: 'italic', align: 'center',
-      wordWrap: { width: width - 40 },
-    }).setOrigin(0.5, 1).setDepth(1);
+    this.tipText = this.add.text(width / 2, height - 12, TIPS[this.tipIndex],
+      textStyle('label', { color: '#444444', fontStyle: 'italic', wordWrap: { width: width - 40 } }),
+    ).setOrigin(0.5, 1).setDepth(1);
 
     // Rotate tips every 8 seconds
     this.time.addEvent({
@@ -1457,23 +1406,16 @@ class GameScene extends Phaser.Scene {
     this.multBadge = this.add.container(mbX, mbY).setDepth(30).setAlpha(0);
     this.multRing = this.add.graphics();
     this.multBadge.add(this.multRing);
-    this.multText = this.add.text(0, -1, '', {
-      fontSize: '22px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    this.multText = this.add.text(0, -1, '',
+      textStyle('heading', { fontSize: '22px' })).setOrigin(0.5);
     this.multBadge.add(this.multText);
-    this.multLabel = this.add.text(0, 18, 'MULTIPLIER', {
-      fontSize: '8px', fontFamily: UI_FONT,
-      color: '#666666', letterSpacing: 2,
-    }).setOrigin(0.5);
+    this.multLabel = this.add.text(0, 18, 'MULTIPLIER',
+      textStyle('label', { fontSize: '8px' })).setOrigin(0.5);
     this.multBadge.add(this.multLabel);
 
     // "GO!" flash
-    const goText = this.add.text(width / 2, height / 2, 'GO!', {
-      fontSize: '64px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(50);
+    const goText = this.add.text(width / 2, height / 2, 'GO!',
+      textStyle('heading', { fontSize: '64px', color: '#f1c40f', strokeThickness: 6 })).setOrigin(0.5).setDepth(50);
 
     this.tweens.add({
       targets: goText, scale: 2, alpha: 0,
@@ -1528,32 +1470,23 @@ class GameScene extends Phaser.Scene {
     this.pauseContainer.add(card);
 
     // PAUSED title
-    const pauseTitle = this.add.text(width / 2, cardY + 30, 'PAUSED', {
-      fontSize: '32px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    const pauseTitle = this.add.text(width / 2, cardY + 30, 'PAUSED',
+      textStyle('heading', { fontSize: '32px' })).setOrigin(0.5);
     this.pauseContainer.add(pauseTitle);
 
     // Current score
-    const scoreLabel = this.add.text(width / 2, cardY + 70, `SCORE: ${this.score.toLocaleString()}`, {
-      fontSize: '18px', fontFamily: UI_FONT,
-      color: '#f1c40f',
-    }).setOrigin(0.5);
+    const scoreLabel = this.add.text(width / 2, cardY + 70, `SCORE: ${this.score.toLocaleString()}`,
+      textStyle('accent', { fontSize: '18px', stroke: '', strokeThickness: 0 })).setOrigin(0.5);
     this.pauseContainer.add(scoreLabel);
 
     // Tip in pause screen
-    const tipLabel = this.add.text(width / 2, cardY + 105, 'TIP', {
-      fontSize: '11px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#555555',
-    }).setOrigin(0.5);
+    const tipLabel = this.add.text(width / 2, cardY + 105, 'TIP',
+      textStyle('label', { fontSize: '11px', color: '#555555', fontStyle: 'bold' })).setOrigin(0.5);
     this.pauseContainer.add(tipLabel);
 
     const pauseTip = TIPS[Phaser.Math.Between(0, TIPS.length - 1)];
-    const tipDisplay = this.add.text(width / 2, cardY + 130, pauseTip, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', fontStyle: 'italic', align: 'center',
-      wordWrap: { width: cardW - 40 },
-    }).setOrigin(0.5, 0);
+    const tipDisplay = this.add.text(width / 2, cardY + 130, pauseTip,
+      textStyle('stat', { fontStyle: 'italic', wordWrap: { width: cardW - 40 } })).setOrigin(0.5, 0);
     this.pauseContainer.add(tipDisplay);
 
     // Buttons
@@ -1714,11 +1647,9 @@ class GameScene extends Phaser.Scene {
     glow.lineBetween(0, cy + 28, width, cy + 28);
 
     // Main text — scales in with bounce
-    const label = this.add.text(width / 2, cy, text, {
-      fontSize: '26px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: colorStr,
-      stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(56).setScale(0);
+    const label = this.add.text(width / 2, cy, text,
+      textStyle('heading', { fontSize: '26px', color: colorStr, strokeThickness: 5 }),
+    ).setOrigin(0.5).setDepth(56).setScale(0);
 
     this.tweens.add({
       targets: label, scale: 1, duration: 400, ease: 'Back.easeOut',
@@ -2169,10 +2100,8 @@ class GameScene extends Phaser.Scene {
         });
         // Show power-up name
         const pos = this.gridToWorld(pu.row, pu.col);
-        const label = this.add.text(pos.x, pos.y - 30, POWERUP_NAMES[pu.type], {
-          fontSize: '14px', fontFamily: UI_FONT,
-          fontStyle: 'bold', color: '#ffd700', stroke: '#000000', strokeThickness: 3,
-        }).setOrigin(0.5).setDepth(25);
+        const label = this.add.text(pos.x, pos.y - 30, POWERUP_NAMES[pu.type],
+          textStyle('accent', { fontSize: '14px', color: '#ffd700' })).setOrigin(0.5).setDepth(25);
         this.tweens.add({
           targets: label, y: pos.y - 60, alpha: 0,
           duration: 800, ease: 'Quad.easeOut',
@@ -2325,10 +2254,8 @@ class GameScene extends Phaser.Scene {
     const color = level ? level.color : '#ffffff';
     const size = level ? Math.min(level.size, 40) : 22;
 
-    const popup = this.add.text(x, y, text, {
-      fontSize: `${size}px`, fontFamily: UI_FONT,
-      fontStyle: 'bold', color, stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(20);
+    const popup = this.add.text(x, y, text,
+      textStyle('popup', { fontSize: `${size}px`, color })).setOrigin(0.5).setDepth(20);
 
     this.tweens.add({
       targets: popup, y: y - 60, alpha: 0, scale: 1.3,
@@ -2684,10 +2611,8 @@ class GameScene extends Phaser.Scene {
     window.audioEngine.playShuffle();
 
     const { width, height } = this.scale;
-    const shuffleText = this.add.text(width / 2, height / 2, 'SHUFFLE!', {
-      fontSize: '36px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(30);
+    const shuffleText = this.add.text(width / 2, height / 2, 'SHUFFLE!',
+      textStyle('heading', { fontSize: '36px', color: '#f1c40f', strokeThickness: 5 })).setOrigin(0.5).setDepth(30);
 
     this.tweens.add({
       targets: shuffleText, scale: 1.5, alpha: 0,

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.3] — 2026-03-30
+
+### Changed
+- **Text style preset system (`TEXT_PRESETS` + `textStyle()`)** — Extracted 8 named typography presets (heading, stat, label, muted, accent, body, popup, badge) and a composable `textStyle(preset, overrides)` factory function. Replaced ~30 inline style objects across all 7 scenes, eliminating repetitive `fontFamily: UI_FONT` / `fontStyle: 'bold'` / `stroke: '#000000'` boilerplate at every `this.add.text()` call site. Each text element now declares its visual intent by name instead of re-specifying 3-6 raw properties. Net reduction of 75 lines with zero visual change. Typography changes (font, stroke weight, color palette) now update from a single location instead of hunting across 54 scattered call sites
+
 ## [0.10.2] — 2026-03-30
 
 ### Changed
