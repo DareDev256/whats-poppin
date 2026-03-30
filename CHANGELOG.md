@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.2] — 2026-03-30
+
+### Changed
+- Added JSDoc documentation to all public APIs in `SafeStorage` (init.js), `PowerUpSystem`, `PowerUpRenderer` (powerups.js), and `Icons` (icons.js) — every exported function now has typed parameters, return values, and behavioral notes
+- Added class-level JSDoc to `Icons`, `PowerUpSystem`, and `PowerUpRenderer` explaining their architectural role
+- Restructured README test section from wall-of-text to scannable table format organized by module
+- Added Architecture section to README with annotated file tree showing load-order dependencies
+- Updated Tech Stack to reflect JSDoc coverage
+
 ## [0.8.1] — 2026-03-30
 
 ### Fixed

@@ -1,8 +1,26 @@
-// What's Poppin — Custom SVG Icon System
-// Replaces all emojis with drawn Phaser graphics icons
+// What's Poppin — Procedural Icon System
+// All icons drawn via Phaser 3 Graphics API — zero external assets
 
+/**
+ * Procedural icon library — every icon is drawn with Phaser Graphics primitives.
+ * No image files, no emoji, no font icons. Each method returns a `Phaser.GameObjects.Graphics`
+ * instance positioned at (x, y) and added to the given scene.
+ *
+ * All methods share the same signature:
+ * `(scene, x, y, size?, color?) → Phaser.GameObjects.Graphics`
+ *
+ * @global
+ */
 class Icons {
-  // Draw a clock/timer icon
+  /**
+   * Clock/timer icon — circle with two hands and a top nub.
+   * @param {Phaser.Scene} scene - Parent scene
+   * @param {number} x - Center X
+   * @param {number} y - Center Y
+   * @param {number} [size=16] - Bounding size in pixels
+   * @param {number} [color=0xffffff] - Fill/stroke color
+   * @returns {Phaser.GameObjects.Graphics}
+   */
   static timer(scene, x, y, size = 16, color = 0xffffff) {
     const g = scene.add.graphics();
     g.lineStyle(2, color, 0.9);

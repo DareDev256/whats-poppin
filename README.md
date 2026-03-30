@@ -36,15 +36,42 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 npm test
 ```
 
-128 unit tests (all passing) covering SafeStorage (checksum tamper detection, integer parsing, unicode/empty/long-string hashing, near-collision resistance), CareerStats persistence (cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility, undefined/NaN/negative gameData resilience), HallOfFame leaderboard (ranked insertion, score sorting, 10-entry cap, rank calculation, zero-score rejection, type injection sanitization, overflow clamping, mode whitelist), cascade simulation (drop → re-match), cascade pause safety (scene clock freezing, resume restart), reshuffle move verification (retry logic, max-attempt cap), endGame selection cleanup, full turn cycle integration (swap → match → pop → drop → verify), game-over stat derivation, power-up analysis→effect integration, swap edge cases (double-null, boundary corners, self-swap), deadlock detection (empty grid, uniform board, isolated pairs), match-finding algorithm (cross-shaped, boundary patterns, null gaps, sub-minimum runs, grid edges), column-independent gravity/drop simulation, adjacency validation, streak tier resolution, adlib tier selection, area-of-effect calculations, scoring formula boundaries (negative inputs, zero streak, exact size-bonus thresholds), shape detection, game constant integrity, and ScanScene derived metrics (skill bracket resolution, efficiency calculation, progressive challenge generation). Uses Vitest.
+128 unit tests across 1 suite (all passing, Vitest). Coverage spans:
+
+| Module | What's tested |
+|--------|--------------|
+| **SafeStorage** | Checksum tamper detection, integer parsing edge cases, unicode/empty/long-string hashing, near-collision resistance |
+| **CareerStats** | Cross-session accumulation, record flags, corrupted JSON recovery, forward compatibility, undefined/NaN/negative gameData resilience, schema sanitization |
+| **HallOfFame** | Ranked insertion, score sorting, 10-entry cap, rank calculation, zero-score rejection, type injection sanitization, overflow clamping, mode whitelist |
+| **GameScene** | Cascade simulation (drop → re-match), pause safety (scene clock freezing), reshuffle verification, endGame cleanup, full turn cycle integration, game-over stat derivation |
+| **PowerUpSystem** | Analysis → effect integration, area-of-effect calculations, shape detection |
+| **Grid Logic** | Match-finding (cross-shaped, boundary, null gaps), gravity/drop simulation, adjacency validation, swap edge cases, deadlock detection |
+| **Scoring** | Formula boundaries (negative inputs, zero streak, exact size-bonus thresholds), streak tier resolution, adlib tier selection |
+| **ScanScene** | Skill bracket resolution, efficiency calculation, progressive challenge generation |
 
 ## Tech Stack
 
 - **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
-- **Vanilla JS** — No build step, no framework. Shared UI utilities (`drawCard`, `drawSceneHeader`, `createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY. Core game loop decomposed into focused methods (`calculateMatchScore`, `applyMatchFeedback`, `startCascadeCycle`). Streak progress bar with tier-aware glow and camera shake for visceral combo feedback. Hall of Fame leaderboard with schema-validated SafeStorage persistence
+- **Vanilla JS** — No build step, no framework. All public APIs are JSDoc-documented. Shared UI utilities (`drawCard`, `drawSceneHeader`, `createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY. Core game loop decomposed into focused methods (`calculateMatchScore`, `applyMatchFeedback`, `startCascadeCycle`). Streak progress bar with tier-aware glow and camera shake for visceral combo feedback. Hall of Fame leaderboard with schema-validated SafeStorage persistence
 - **CDN** — Phaser loaded from jsDelivr with integrity verification
 - **Vitest** — Unit testing (dev dependency)
+
+## Architecture
+
+```
+index.html                 Entry point — loads scripts in dependency order
+├── src/init.js            SafeStorage (tamper-resistant localStorage) + SW registration
+├── src/characters.js      Procedural character drawing (Kira, Blaze, Ronin, Empress)
+├── src/icons.js           Procedural icon library (15 icons, zero external assets)
+├── src/powerups.js        PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
+├── src/audio.js           AudioEngine — synthesized sound via Web Audio API
+├── src/game.js            Core game — scenes, grid logic, UI utilities, Phaser config
+├── sw.js                  Service worker — caching, offline fallback, CSP enforcement
+└── src/game.test.js       128 unit tests (Vitest)
+```
+
+**Load order matters** — `init.js` exposes `SafeStorage` globally before `game.js` references it. All modules attach to `window` (no ES modules / build step). Phaser is loaded from jsDelivr CDN with SRI verification.
 
 ## Run Locally
 
