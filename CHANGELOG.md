@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1] — 2026-03-30
+
+### Fixed
+- Race condition in audio playback initiation — `AudioContext.resume()` is async but was called synchronously, causing `startBgBeat()` and SFX to fire into a still-suspended context on mobile browsers
+- Serialized resume with promise tracking (`_resumePromise`) to prevent overlapping resume calls from multiple scene handlers
+- Added `_pendingBgBeat` deferred start so the background beat reliably begins after the context is confirmed running
+- All SFX methods (`playSelect`, `playPop`, `playStreakHit`, `playInvalid`, `playLand`, `playShuffle`) now gate on `_isReady()` (context state === 'running') instead of just `initialized`, preventing silent scheduling failures
+- `stopBgBeat()` clears `_pendingBgBeat` to prevent a deferred beat from starting after game ends
+
 ## [0.8.0] — 2026-03-29
 
 ### Added

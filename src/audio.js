@@ -11,6 +11,8 @@ class AudioEngine {
     this.bgPlaying = false;
     this.bgNodes = [];
     this.bgTimeout = null;
+    this._resumePromise = null; // Serializes async context activation
+    this._pendingBgBeat = false; // Deferred startBgBeat if context not yet running
 
     // Pentatonic scale for melodic pop sounds — always sounds good
     // D minor pentatonic for that moody, hip-hop feel
@@ -41,15 +43,31 @@ class AudioEngine {
 
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      // AudioContext.resume() is async — serialize it to prevent race conditions
+      // where playback fires into a still-suspended context
+      if (!this._resumePromise) {
+        this._resumePromise = this.ctx.resume().then(() => {
+          this._resumePromise = null;
+          // If startBgBeat was called while suspended, fire it now
+          if (this._pendingBgBeat) {
+            this._pendingBgBeat = false;
+            this.startBgBeat();
+          }
+        }).catch(() => { this._resumePromise = null; });
+      }
     }
+  }
+
+  // True when the AudioContext is running and ready for scheduling
+  _isReady() {
+    return this.initialized && this.ctx && this.ctx.state === 'running';
   }
 
   // -------------------------------------------------------
   // BUBBLE SELECT — soft click
   // -------------------------------------------------------
   playSelect() {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime;
 
     const osc = this.ctx.createOscillator();
@@ -69,7 +87,7 @@ class AudioEngine {
   // BUBBLE POP — melodic, pitch rises with combo chain
   // -------------------------------------------------------
   playPop(streak = 1, bubbleIndex = 0) {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime;
     const delay = bubbleIndex * 0.04; // Stagger pops in a group
 
@@ -142,7 +160,7 @@ class AudioEngine {
   // STREAK HIT — escalating impact sounds
   // -------------------------------------------------------
   playStreakHit(streak) {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime;
     this.popIndex = 0; // Reset melodic sequence for next chain
 
@@ -329,7 +347,7 @@ class AudioEngine {
   // INVALID MOVE — dull thud
   // -------------------------------------------------------
   playInvalid() {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime;
 
     const osc = this.ctx.createOscillator();
@@ -349,7 +367,7 @@ class AudioEngine {
   // BUBBLE LAND — soft thump when bubbles drop into place
   // -------------------------------------------------------
   playLand(delay = 0) {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime + delay;
 
     const osc = this.ctx.createOscillator();
@@ -369,7 +387,7 @@ class AudioEngine {
   // SHUFFLE — whoosh
   // -------------------------------------------------------
   playShuffle() {
-    if (!this.initialized) return;
+    if (!this._isReady()) return;
     const now = this.ctx.currentTime;
 
     // Whoosh noise sweep
@@ -406,12 +424,18 @@ class AudioEngine {
   // -------------------------------------------------------
   startBgBeat() {
     if (!this.initialized || this.bgPlaying) return;
+    // Defer if context is still resuming — _pendingBgBeat triggers in resume() callback
+    if (this.ctx.state !== 'running') {
+      this._pendingBgBeat = true;
+      return;
+    }
     this.bgPlaying = true;
     this.bgLoop();
   }
 
   stopBgBeat() {
     this.bgPlaying = false;
+    this._pendingBgBeat = false; // Cancel any deferred start
     if (this.bgTimeout) {
       clearTimeout(this.bgTimeout);
       this.bgTimeout = null;
