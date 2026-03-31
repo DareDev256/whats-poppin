@@ -12,6 +12,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
+- **Fever Mode** — Chain matches to fill the left-edge meter. At 100%, FEVER MODE activates with 2× score multiplier, pulsing gold border, and enhanced star-burst particles. Keep matching during fever to extend the timer (up to 10s). The meter drains during idle moments — stay aggressive. Fever count shown in game over stats and share card
 - **Live milestones** — "NEW HIGH SCORE!" and "BEST STREAK!" banners fire instantly mid-game when you beat your personal records. Gold/red glow band, scale-in text, and sparkle burst. Each fires once per game; first-ever games (no records to beat) stay clean
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
 - **Lifetime stats** — "Your Legacy" dashboard tracks all-time games played (per mode), total bubbles popped, cumulative score, best streak, and best grades. Animated count-up values and color-coded progress bars. All stats checksum-protected via SafeStorage
@@ -25,7 +26,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers

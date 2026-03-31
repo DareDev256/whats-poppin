@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.12.0] — 2026-03-31
+
+### Added
+- **Fever Mode** — Combo energy meter that fills with consecutive matches and triggers a 2× score bonus state. Left-edge vertical bar with 4 color stages (blue → green → yellow → red → gold). At 100% fill, FEVER MODE activates for 6 seconds with dramatic banner announcement, pulsing gold border, and enhanced star-burst particles. Matching during fever extends the timer by 1.5s (max 10s). Meter drains slowly during idle moments to maintain tension. Score popup shows 🔥 indicator during fever. Fever count displayed in game over stats and share card. Tips scene updated with Fever Mode strategy section
+
 ## [0.11.0] — 2026-03-31
 
 ### Added
