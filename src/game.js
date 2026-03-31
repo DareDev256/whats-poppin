@@ -42,6 +42,35 @@ const ADLIBS = {
 const UI_FONT = '"Segoe UI", system-ui, sans-serif';
 
 // =============================================================
+// SHARED UTILITIES — DRY helpers used across all scenes
+// =============================================================
+
+/**
+ * Find the highest streak tier matching a value.
+ * Replaces the repeated `STREAK_LEVELS.filter(l => val >= l.min).pop()` pattern.
+ * @param {number} value - Streak count or similar threshold value
+ * @returns {object|null} The highest matching tier, or null if below minimum
+ */
+function getStreakTier(value) {
+  let tier = null;
+  for (let i = STREAK_LEVELS.length - 1; i >= 0; i--) {
+    if (value >= STREAK_LEVELS[i].min) { tier = STREAK_LEVELS[i]; break; }
+  }
+  return tier;
+}
+
+/**
+ * Initialize audio engine and restore the user's mute preference.
+ * Centralizes the init → resume → restore-mute sequence used by multiple scenes.
+ */
+function initAudioWithPrefs() {
+  window.audioEngine.init();
+  window.audioEngine.resume();
+  const wasMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
+  window.audioEngine.setMuted(wasMuted);
+}
+
+// =============================================================
 // CAREER STATS — Cross-session stat tracking with SafeStorage
 // =============================================================
 const CareerStats = {
@@ -460,13 +489,7 @@ class TitleScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Init audio on first interaction
-    this.input.once('pointerdown', () => {
-      window.audioEngine.init();
-      window.audioEngine.resume();
-      // Restore saved mute preference
-      const wasMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
-      window.audioEngine.setMuted(wasMuted);
-    });
+    this.input.once('pointerdown', () => initAudioWithPrefs());
   }
 
   _buildSoundToggle(width) {
@@ -493,8 +516,7 @@ class TitleScene extends Phaser.Scene {
     hit.on('pointerover', () => this._drawSoundBtnBg(btnX, btnY, btnSize, true));
     hit.on('pointerout', () => this._drawSoundBtnBg(btnX, btnY, btnSize, false));
     hit.on('pointerdown', () => {
-      window.audioEngine.init();
-      window.audioEngine.resume();
+      initAudioWithPrefs();
       const nowMuted = window.audioEngine.toggleMute();
       SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
 
@@ -626,7 +648,7 @@ class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Streak tier achieved
-    const tierLevel = STREAK_LEVELS.filter(l => bestStreak >= l.min).pop();
+    const tierLevel = getStreakTier(bestStreak);
     if (tierLevel && window.characters) {
       const charKey = tierLevel.char;
       const char = window.characters[charKey];
@@ -742,7 +764,7 @@ class HallOfFameScene extends Phaser.Scene {
         });
 
         // Details line: streak + mode + date
-        const tierLabel = STREAK_LEVELS.filter(l => entry.streak >= l.min).pop();
+        const tierLabel = getStreakTier(entry.streak);
         const detail = `${entry.streak}x streak${tierLabel ? ' · ' + tierLabel.label : ''}  ·  ${entry.mode}  ·  ${entry.date}`;
         this.add.text(padX + 52, y + 28, detail, {
           fontSize: '10px', fontFamily: UI_FONT, color: '#777777',
@@ -1154,7 +1176,7 @@ class StatsScene extends Phaser.Scene {
 
     // — Streak tier unlocked —
     const tierY = avgY + 75;
-    const tierLevel = STREAK_LEVELS.filter(l => stats.bestStreak >= l.min).pop();
+    const tierLevel = getStreakTier(stats.bestStreak);
     if (tierLevel && window.characters) {
       const char = window.characters[tierLevel.char];
       if (char) {
@@ -1217,7 +1239,7 @@ class ScanScene extends Phaser.Scene {
     const avgPops = Math.round(stats.totalPops / gp);
     const efficiency = avgPops > 0 ? +(avgScore / avgPops).toFixed(1) : 0;
     const nextTier = STREAK_LEVELS.find(l => stats.bestStreak < l.min) || null;
-    const currentTier = STREAK_LEVELS.filter(l => stats.bestStreak >= l.min).pop() || null;
+    const currentTier = getStreakTier(stats.bestStreak);
 
     // Skill bracket (based on avg score)
     const brackets = [
@@ -1384,11 +1406,7 @@ class GameScene extends Phaser.Scene {
     this.audioStarted = false;
     this.input.on('pointerdown', () => {
       if (!this.audioStarted) {
-        window.audioEngine.init();
-        window.audioEngine.resume();
-        // Restore mute preference before starting beat
-        const wasMuted = SafeStorage.get('whatspoppin_muted', '0') === '1';
-        window.audioEngine.setMuted(wasMuted);
+        initAudioWithPrefs();
         window.audioEngine.startBgBeat();
         this.audioStarted = true;
       }
@@ -2454,7 +2472,7 @@ class GameScene extends Phaser.Scene {
   }
 
   showScorePopup(x, y, text, streak) {
-    const level = STREAK_LEVELS.filter(l => streak >= l.min).pop();
+    const level = getStreakTier(streak);
     const color = level ? level.color : '#ffffff';
     const size = level ? Math.min(level.size, 40) : 22;
 
@@ -2509,7 +2527,7 @@ class GameScene extends Phaser.Scene {
   // HYPE BAR — Characters + streak reactions
   // -----------------------------------------------------------
   triggerHypeBar() {
-    const level = STREAK_LEVELS.filter(l => this.streak >= l.min).pop();
+    const level = getStreakTier(this.streak);
     if (!level) {
       this.streakText.setAlpha(0);
       this.adlibText.setAlpha(0);
@@ -2616,7 +2634,7 @@ class GameScene extends Phaser.Scene {
   updateStreakUI() {
     if (this.streak > 1) {
       this.streakCounter.setText(`STREAK: ${this.streak}x`);
-      const level = STREAK_LEVELS.filter(l => this.streak >= l.min).pop();
+      const level = getStreakTier(this.streak);
       this.streakCounter.setColor(level ? level.color : '#888888');
     } else {
       this.streakCounter.setText('');

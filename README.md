@@ -53,7 +53,7 @@ npm test
 
 - **Phaser 3** — Game engine (loaded from jsDelivr CDN with SRI)
 - **Web Audio API** — All sound synthesized, zero external files
-- **Vanilla JS** — No build step, no framework. All public APIs are JSDoc-documented. Shared UI utilities (`drawCard`, `drawSceneHeader`, `createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY. Core game loop decomposed into focused methods (`calculateMatchScore`, `applyMatchFeedback`, `startCascadeCycle`). Streak progress bar with tier-aware glow and camera shake for visceral combo feedback. Hall of Fame leaderboard with schema-validated SafeStorage persistence
+- **Vanilla JS** — No build step, no framework. All public APIs are JSDoc-documented. Shared UI utilities (`drawCard`, `drawSceneHeader`, `createButton`, `drawDarkGridBg`, `UI_FONT`) keep scene code DRY. Game logic utilities (`getStreakTier`, `initAudioWithPrefs`) centralize cross-scene patterns. Core game loop decomposed into focused methods (`calculateMatchScore`, `applyMatchFeedback`, `startCascadeCycle`). Streak progress bar with tier-aware glow and camera shake for visceral combo feedback. Hall of Fame leaderboard with schema-validated SafeStorage persistence
 - **CDN** — Phaser loaded from jsDelivr with integrity verification
 - **Vitest** — Unit testing (dev dependency)
 

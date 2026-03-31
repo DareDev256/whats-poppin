@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3] — 2026-03-31
+
+### Changed
+- Extracted `getStreakTier(value)` utility to replace 7 scattered `STREAK_LEVELS.filter(...).pop()` lookups across GameScene, GameOverScene, HallOfFameScene, StatsScene, ScanScene, and score popup rendering — single source of truth for tier resolution
+- Extracted `initAudioWithPrefs()` utility to centralize the audio init → resume → restore-mute-preference sequence duplicated across TitleScene, GameScene, and the sound toggle handler
+- `getStreakTier` uses a reverse-scan loop instead of filter/pop for O(1) best-case vs O(n) allocation — minor but measurable in hot paths like `updateStreakUI` called every match
+
 ## [0.8.2] — 2026-03-30
 
 ### Changed
