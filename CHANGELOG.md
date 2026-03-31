@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] — 2026-03-31
+
+### Added
+- **Achievement system** — 8 progression milestones that unlock during gameplay: FIRST BLOOD (first pop), ON FIRE (5× streak), DEMON TIME (8× streak), TRANSCENDENT (12× streak), BIG MONEY (5,000+ score), UNTOUCHABLE (10,000+ score), POP MACHINE (500 lifetime pops), DEDICATED (10 games played). Each achievement fires a slide-in toast notification with star icon, tier-colored card, and a satisfying two-tone unlock sound (ascending triangle waves). Multiple unlocks in one match stagger automatically. Achievement progress is shown in the Your Legacy dashboard with a 2-column grid layout, color-coded dot indicators, and unlock/lock states. All achievements persist via SafeStorage with `whatspoppin_ach_<id>` keys. Session + lifetime stats are checked both during gameplay (processMatches) and at game end (endGame) to catch every unlock path
+
 ## [0.10.4] — 2026-03-30
 
 ### Added

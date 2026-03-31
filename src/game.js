@@ -49,6 +49,45 @@ const GRADES = [
   { grade: 'D', minScore: 100,  minStreak: 0, color: '#e74c3c', label: 'ROOKIE' },
 ];
 
+// =============================================================
+// ACHIEVEMENTS — Progression milestones that drive replay value
+// =============================================================
+const ACHIEVEMENTS = [
+  { id: 'first_blood',  name: 'FIRST BLOOD',  desc: 'Pop your first bubble',           color: '#3498db', threshold: () => true },
+  { id: 'streak_5',     name: 'ON FIRE',       desc: 'Hit a 5× streak',                 color: '#f1c40f', threshold: (s) => s.bestStreak >= 5 },
+  { id: 'streak_8',     name: 'DEMON TIME',    desc: 'Hit an 8× streak',                color: '#e74c3c', threshold: (s) => s.bestStreak >= 8 },
+  { id: 'streak_12',    name: 'TRANSCENDENT',  desc: 'Hit a 12× streak',                color: '#9b59b6', threshold: (s) => s.bestStreak >= 12 },
+  { id: 'score_5k',     name: 'BIG MONEY',     desc: 'Score 5,000+ in one game',        color: '#f1c40f', threshold: (s) => s.score >= 5000 },
+  { id: 'score_10k',    name: 'UNTOUCHABLE',   desc: 'Score 10,000+ in one game',       color: '#ff6b35', threshold: (s) => s.score >= 10000 },
+  { id: 'pops_500',     name: 'POP MACHINE',   desc: 'Pop 500 lifetime bubbles',        color: '#2ecc71', threshold: (_, lt) => lt.totalPops >= 500 },
+  { id: 'games_10',     name: 'DEDICATED',      desc: 'Play 10 games',                   color: '#3498db', threshold: (_, lt) => lt.totalGames >= 10 },
+];
+
+/**
+ * Achievement persistence layer — unlock, query, iterate.
+ * Stores each unlock as `whatspoppin_ach_<id>` = '1' via SafeStorage.
+ */
+const Achievements = {
+  _key(id) { return `whatspoppin_ach_${id}`; },
+  isUnlocked(id) { return SafeStorage.get(this._key(id), '0') === '1'; },
+  unlock(id) {
+    if (this.isUnlocked(id)) return false;
+    SafeStorage.set(this._key(id), '1');
+    return true; // newly unlocked
+  },
+  /** Check all achievements against session + lifetime stats, return newly unlocked. */
+  check(session, lifetime) {
+    const fresh = [];
+    for (const ach of ACHIEVEMENTS) {
+      if (!this.isUnlocked(ach.id) && ach.threshold(session, lifetime)) {
+        if (this.unlock(ach.id)) fresh.push(ach);
+      }
+    }
+    return fresh;
+  },
+  countUnlocked() { return ACHIEVEMENTS.filter(a => this.isUnlocked(a.id)).length; },
+};
+
 /** Calculate performance grade from score and best streak. */
 function getGrade(score, bestStreak) {
   for (const g of GRADES) {
@@ -1164,6 +1203,41 @@ class StatsScene extends Phaser.Scene {
       }
     }
 
+    // ---- ACHIEVEMENTS SECTION ----
+    const achTop = cardTop + 340;
+    const unlocked = Achievements.countUnlocked();
+    const total = ACHIEVEMENTS.length;
+
+    this.add.text(width / 2, achTop, 'ACHIEVEMENTS',
+      textStyle('heading', { fontSize: '20px', color: '#f1c40f' })).setOrigin(0.5);
+    this.add.text(width / 2, achTop + 24, `${unlocked} / ${total} unlocked`,
+      textStyle('muted', { color: unlocked === total ? '#2ecc71' : '#555555' })).setOrigin(0.5);
+
+    const achStartY = achTop + 48;
+    const achColW = (width - 40) / 2;
+    ACHIEVEMENTS.forEach((ach, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const ax = cardX + col * achColW + achColW / 2;
+      const ay = achStartY + row * 42;
+      const done = Achievements.isUnlocked(ach.id);
+
+      // Dot indicator
+      const dot = this.add.graphics();
+      dot.fillStyle(done ? Phaser.Display.Color.HexStringToColor(ach.color).color : 0x2a2a4a, done ? 0.9 : 0.4);
+      dot.fillCircle(ax - achColW / 2 + 12, ay + 6, 5);
+      if (done) {
+        dot.fillStyle(0xffffff, 0.7);
+        dot.fillCircle(ax - achColW / 2 + 12, ay + 5, 1.5);
+      }
+
+      // Name + description
+      this.add.text(ax - achColW / 2 + 24, ay - 2, ach.name,
+        textStyle('badge', { fontSize: '11px', color: done ? ach.color : '#444444', stroke: '', strokeThickness: 0 }));
+      this.add.text(ax - achColW / 2 + 24, ay + 12, ach.desc,
+        textStyle('label', { fontSize: '8px', color: done ? '#777777' : '#333333', letterSpacing: 0 }));
+    });
+
     // Back button
     createButton(this, { x: width / 2, y: height * 0.92, width: width - 60, height: 44, radius: 12,
       text: 'BACK TO MENU', color: '#aaaaaa',
@@ -1634,6 +1708,56 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Achievement toast — slides in from the top with icon + text, auto-dismisses.
+   * Staggered via delay param so multiple unlocks don't overlap.
+   */
+  showAchievementToast(ach, delay = 0) {
+    const { width } = this.scale;
+    const toastY = HYPE_BAR_HEIGHT + 48;
+    const toastW = Math.min(width - 30, 280);
+    const toastX = width / 2;
+
+    const container = this.add.container(toastX, toastY - 50).setDepth(70).setAlpha(0);
+
+    // Background card
+    const bg = this.add.graphics();
+    bg.fillStyle(0x12121f, 0.95);
+    bg.fillRoundedRect(-toastW / 2, -18, toastW, 36, 10);
+    const borderColor = Phaser.Display.Color.HexStringToColor(ach.color).color;
+    bg.lineStyle(1.5, borderColor, 0.6);
+    bg.strokeRoundedRect(-toastW / 2, -18, toastW, 36, 10);
+    container.add(bg);
+
+    // Star icon (left side)
+    const star = Icons.star(this, -toastW / 2 + 20, 0, 14, borderColor);
+    star.setDepth(71);
+    container.add(star);
+
+    // Achievement text
+    const label = this.add.text(4, -1, ach.name, textStyle('badge', { fontSize: '14px', color: ach.color })).setOrigin(0.5);
+    container.add(label);
+
+    // Slide in + fade
+    this.tweens.add({
+      targets: container, y: toastY, alpha: 1,
+      duration: 400, delay, ease: 'Back.easeOut',
+    });
+    // Dismiss
+    this.tweens.add({
+      targets: container, y: toastY - 30, alpha: 0,
+      duration: 300, delay: delay + 2200, ease: 'Quad.easeIn',
+      onComplete: () => container.destroy(true),
+    });
+
+    // Play a satisfying unlock sound
+    if (window.audioEngine?.initialized) {
+      const t = window.audioEngine.ctx.currentTime + delay / 1000;
+      window.audioEngine._tone(t, { type: 'triangle', freq: 880, vol: 0.12, dur: 0.15 });
+      window.audioEngine._tone(t + 0.08, { type: 'triangle', freq: 1174.66, vol: 0.1, dur: 0.2 });
+    }
+  }
+
   showMilestoneBanner(text, colorStr, colorHex) {
     const { width, height } = this.scale;
     const cy = height * 0.42; // center of the grid area
@@ -1723,6 +1847,14 @@ class GameScene extends Phaser.Scene {
     if ((this.bestStreak || 0) > allTimeBest) {
       SafeStorage.set('whatspoppin_best_streak', this.bestStreak.toString());
     }
+
+    // End-of-game achievement check (lifetime stats like games_10, pops_500)
+    const endSession = { score: finalScore, bestStreak: this.bestStreak || 0 };
+    const endLifetime = {
+      totalPops: lifetimePops,
+      totalGames: SafeStorage.getInt('whatspoppin_games_timed', 0) + SafeStorage.getInt('whatspoppin_games_zen', 0),
+    };
+    Achievements.check(endSession, endLifetime);
 
     // Transition — safeScore() catches NaN/Infinity that || 0 would miss
     this.time.delayedCall(1000, () => {
@@ -2128,6 +2260,15 @@ class GameScene extends Phaser.Scene {
 
     // ---- LIVE MILESTONES ----
     this.checkMilestones();
+
+    // ---- ACHIEVEMENT CHECKS (streak + first pop) ----
+    const sessionSnap = { score: this.score, bestStreak: this.bestStreak };
+    const ltSnap = {
+      totalPops: SafeStorage.getInt('whatspoppin_total_pops', 0) + this.totalPopped,
+      totalGames: SafeStorage.getInt('whatspoppin_games_timed', 0) + SafeStorage.getInt('whatspoppin_games_zen', 0),
+    };
+    const freshAchs = Achievements.check(sessionSnap, ltSnap);
+    freshAchs.forEach((ach, i) => this.showAchievementToast(ach, i * 2600));
 
     // Streak sound + visual
     window.audioEngine.playStreakHit(this.streak);

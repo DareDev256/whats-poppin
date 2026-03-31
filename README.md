@@ -15,6 +15,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Live milestones** — "NEW HIGH SCORE!" and "BEST STREAK!" banners fire instantly mid-game when you beat your personal records. Gold/red glow band, scale-in text, and sparkle burst. Each fires once per game; first-ever games (no records to beat) stay clean
 - **Score sharing** — Copy your score card to clipboard or share via Web Share API on mobile. Formatted for social posting
 - **Lifetime stats** — "Your Legacy" dashboard tracks all-time games played (per mode), total bubbles popped, cumulative score, best streak, and best grades. Animated count-up values and color-coded progress bars. All stats checksum-protected via SafeStorage
+- **Achievements** — 8 progression milestones (FIRST BLOOD, ON FIRE, DEMON TIME, TRANSCENDENT, BIG MONEY, UNTOUCHABLE, POP MACHINE, DEDICATED) that unlock during gameplay with animated toast notifications and a satisfying two-tone unlock sound. Achievement progress is displayed in the Your Legacy dashboard with color-coded unlock indicators. Persisted via SafeStorage
 - **Two modes** — Timed (90s) and Zen (no timer)
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -24,7 +25,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, TEXT_PRESETS + textStyle() typography system, shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
