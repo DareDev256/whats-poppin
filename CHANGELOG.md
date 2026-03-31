@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.4] — 2026-03-31
+
+### Changed
+- Rewrote README to portfolio-grade documentation: added scene reference table, public API table, line-count annotated architecture tree, and tech stack matrix
+- Updated test count from 128 to 129 (actual `it()` count)
+- Restructured features, security, and architecture sections for scannability — tables over bullet walls
+- Added `npm run dev` as primary run instruction alongside `npx serve` fallback
+- Added License section
+
 ## [0.8.3] — 2026-03-31
 
 ### Changed
