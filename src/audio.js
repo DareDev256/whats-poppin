@@ -35,6 +35,15 @@ class AudioEngine {
       this.compressor.ratio.value = 4;
       this.compressor.connect(this.masterGain);
 
+      // Listen for context state changes (iOS interruption, Bluetooth disconnect,
+      // tab backgrounding on mobile Safari) to auto-recover the bg beat loop
+      this.ctx.addEventListener('statechange', () => {
+        if (this.ctx.state === 'running' && this._pendingBgBeat) {
+          this._pendingBgBeat = false;
+          this.startBgBeat();
+        }
+      });
+
       this.initialized = true;
     } catch (e) {
       console.warn('Web Audio not available:', e);
@@ -446,6 +455,13 @@ class AudioEngine {
 
   bgLoop() {
     if (!this.bgPlaying) return;
+    // Context can suspend mid-playback (iOS phone call, Bluetooth disconnect,
+    // mobile tab backgrounding). Park the loop and let statechange recover it.
+    if (!this._isReady()) {
+      this._pendingBgBeat = true;
+      this.bgPlaying = false;
+      return;
+    }
     const now = this.ctx.currentTime;
     const bpm = 75; // Lo-fi tempo
     const beat = 60 / bpm;

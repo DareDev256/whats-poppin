@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.5] — 2026-04-01
+
+### Fixed
+- Fixed remaining race condition in `bgLoop()` where AudioContext suspension mid-playback (iOS phone calls, Bluetooth disconnect, mobile tab backgrounding) caused the beat loop to schedule into a dead context with no recovery path
+- Added `statechange` listener on AudioContext to automatically recover the background beat when the context transitions back to `'running'` after interruption
+- `bgLoop()` now gates on `_isReady()` and parks itself via `_pendingBgBeat` instead of silently scheduling into a suspended context
+
 ## [0.8.4] — 2026-03-31
 
 ### Changed

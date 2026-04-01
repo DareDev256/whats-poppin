@@ -61,7 +61,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 │
 ├── src/
 │   ├── init.js          (79)  SafeStorage — tamper-resistant localStorage with FNV-1a checksums
-│   ├── audio.js        (610)  AudioEngine — synthesized lo-fi beat, 808 bass, melodic pops, streak SFX
+│   ├── audio.js        (620)  AudioEngine — synthesized lo-fi beat, 808 bass, melodic pops, streak SFX, auto-recovery on context interruption
 │   ├── icons.js        (265)  Procedural icon library — 15 icons, zero external assets
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
