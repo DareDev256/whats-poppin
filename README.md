@@ -26,7 +26,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), processMatches() pipeline (see below), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
@@ -103,6 +103,30 @@ IDLE ──(5s no input)──▶ AUTO_HINT ──(pointer down)──▶ IDLE
 ```
 
 Key flags: `hintActive` (bool), `hintPair` (cell coords or null), `idleTime` (ms counter), `hintsUsed` / `maxHints` (charge economy).
+
+## Match Processing Pipeline (`processMatches`)
+
+The heart of the game engine. Every match — whether player-initiated or cascade-triggered — flows through `GameScene.processMatches()`, an 8-stage pipeline that orchestrates power-ups, scoring, fever, achievements, and gravity in a single recursive loop.
+
+```
+matchGroups (from findAllMatches)
+  │
+  ├─ 1. Power-up detection ─── PowerUpSystem.analyze() per group
+  ├─ 2. Pop & destroy ──────── remove bubbles, play melodic SFX
+  ├─ 3. Power-up activate ──── detonate existing power-ups (LINE/BOMB/NUKE)
+  ├─ 4. Power-up create ────── transform center bubble → new power-up
+  ├─ 5. Fever meter fill ───── +8% base, +3%/streak, +5%/power-up
+  ├─ 6. Scoring ────────────── (base + sizeBonus + puBonus) × streak × fever
+  ├─ 7. Milestones & Achs ──── live banners + 8-milestone achievement check
+  └─ 8. Gravity cascade ────── drop → refill → scan → recurse if matches found
+                                  └─ 300ms ─ 350ms ─ 400ms (staggered for animation)
+```
+
+**Recursion model:** Stage 8 calls `findAllMatches()` after gravity settles. If new matches exist, `processMatches()` recurses — incrementing `this.streak` each level, which naturally escalates multipliers, camera shake intensity, and visual effects. Input stays locked (`isProcessing = true`) across the entire cascade depth.
+
+**Scoring formula:** `safeScore((popped×10 + max(0, popped-4)×15 + activatedPUs×50) × min(streak, 10) × (fever ? 2 : 1))`
+
+All score accumulation passes through `safeScore()` to prevent NaN/Infinity from corrupting the running total — a guard added after [0.10.1] to harden the scoring pipeline.
 
 ## Tests
 

@@ -2260,6 +2260,76 @@ class GameScene extends Phaser.Scene {
   // -----------------------------------------------------------
   // MATCH PROCESSING — Power-ups, pop, score, drop, refill
   // -----------------------------------------------------------
+
+  /**
+   * Core game loop orchestrator — processes matched bubble groups through
+   * an 8-stage pipeline, then recurses via a timed cascade to handle
+   * chain reactions from gravity refills.
+   *
+   * ## Pipeline stages (in execution order)
+   *
+   * | # | Stage              | Side effect                                              |
+   * |---|--------------------|----------------------------------------------------------|
+   * | 1 | Power-up detection | Scans each group via `PowerUpSystem.analyze()` for       |
+   * |   |                    | LINE/BOMB/NUKE creation; collects existing power-ups     |
+   * |   |                    | on matched cells for detonation                          |
+   * | 2 | Pop & destroy      | Removes non-power-up bubbles from grid, plays melodic    |
+   * |   |                    | pop SFX (pitch rises with `popIdx`)                      |
+   * | 3 | Power-up activate  | Detonates collected power-ups → `getAffectedCells()` →   |
+   * |   |                    | area pop + VFX via `spawnPowerUpEffect()`                |
+   * | 4 | Power-up create    | Transforms center bubble of qualifying matches into a    |
+   * |   |                    | new power-up with flash animation + floating label       |
+   * | 5 | Fever meter        | Adds energy (8% base + 3%/streak + 5%/power-up).        |
+   * |   |                    | Triggers `activateFever()` at 100%; extends timer by     |
+   * |   |                    | 1.5s per match while fever is active (max 10s)           |
+   * | 6 | Scoring            | `(base + sizeBonus + powerUpBonus) × streak × fever`.    |
+   * |   |                    | All values pass through `safeScore()` to block           |
+   * |   |                    | NaN/Infinity propagation. Shows floating popup           |
+   * | 7 | Milestones & Achs  | `checkMilestones()` fires live "NEW HIGH SCORE!" /       |
+   * |   |                    | "BEST STREAK!" banners. `Achievements.check()` tests     |
+   * |   |                    | all 8 progression thresholds and shows toast on unlock    |
+   * | 8 | Gravity cascade    | After 300ms: `dropBubbles()` → 350ms: `refillGrid()` →  |
+   * |   |                    | 400ms: `findAllMatches()`. If new matches found,         |
+   * |   |                    | **recurses** into `processMatches()` (chain reaction).   |
+   * |   |                    | Otherwise unlocks input via `isProcessing = false`       |
+   *
+   * ## Recursion & timing
+   *
+   * The gravity cascade (stage 8) uses staggered `time.delayedCall()` to
+   * let drop/refill animations play before scanning for new matches.
+   * Each recursive call increments `this.streak`, so chain reactions
+   * naturally escalate scoring multipliers and visual intensity.
+   * Input is blocked (`isProcessing = true`) for the entire cascade depth.
+   *
+   * ## Scoring formula
+   *
+   * ```
+   * base       = totalPopped × 10
+   * sizeBonus  = max(0, totalPopped - 4) × 15
+   * powerUp    = activatedPowerUps × 50
+   * multiplier = min(streak, 10)
+   * fever      = feverActive ? 2 : 1
+   * points     = safeScore((base + sizeBonus + powerUp) × multiplier × fever)
+   * ```
+   *
+   * @param {Array<Phaser.GameObjects.Image[]>} matchGroups — Arrays of matched
+   *   bubble sprites, each group representing one contiguous run of 3+ same-color
+   *   bubbles. Produced by `findAllMatches()`. Each bubble carries `row`, `col`,
+   *   `colorIdx`, and optionally `powerUp` data keys.
+   *
+   * @returns {void} All effects are side-effects on scene state (`this.score`,
+   *   `this.streak`, `this.grid`, `this.feverMeter`, etc.) and the Phaser
+   *   display list.
+   *
+   * @fires AudioEngine#playPop — Per-bubble pop with ascending pitch
+   * @fires AudioEngine#playStreakHit — Streak-tier celebration SFX
+   * @fires Phaser.Cameras.Scene2D.Camera#shake — Intensity scales with streak
+   *
+   * @see findAllMatches — Produces the `matchGroups` input
+   * @see PowerUpSystem.analyze — Determines power-up type from match shape
+   * @see safeScore — Guards against NaN/Infinity in score accumulation
+   * @see Achievements.check — Tests all 8 milestone thresholds
+   */
   processMatches(matchGroups) {
     this.streak++;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;

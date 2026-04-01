@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.1] — 2026-04-01
+
+### Added
+- **Comprehensive JSDoc for `processMatches()`** — The core game loop orchestrator now has full documentation: 8-stage pipeline table (power-up detection → pop → activate → create → fever → scoring → milestones/achievements → gravity cascade), recursion model explanation, scoring formula breakdown, parameter/return annotations, and cross-references to `findAllMatches`, `PowerUpSystem.analyze`, `safeScore`, and `Achievements.check`
+- **README: Match Processing Pipeline section** — New architecture section with ASCII pipeline diagram, recursion model, and scoring formula. Architecture tree updated to reference `processMatches()`
+
 ## [0.12.0] — 2026-03-31
 
 ### Added
