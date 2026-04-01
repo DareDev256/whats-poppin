@@ -177,6 +177,96 @@ const HallOfFame = {
 };
 
 // =============================================================
+// ACHIEVEMENTS — Persistent badge system driven by CareerStats
+// =============================================================
+const ACHIEVEMENTS = [
+  { id: 'first_blood', name: 'FIRST BLOOD', desc: 'Play your first game', icon: 'play', color: 0x2ecc71, check: s => s.gamesPlayed >= 1 },
+  { id: 'combo_kid', name: 'COMBO KID', desc: 'Hit a 3x streak', icon: 'fire', color: 0x2ecc71, check: s => s.bestStreak >= 3 },
+  { id: 'flame_on', name: 'FLAME ON', desc: 'Hit a 5x streak', icon: 'fire', color: 0xf1c40f, check: s => s.bestStreak >= 5 },
+  { id: 'demon_time', name: 'DEMON TIME', desc: 'Hit an 8x streak', icon: 'sword', color: 0xe74c3c, check: s => s.bestStreak >= 8 },
+  { id: 'transcendent', name: 'TRANSCENDENT', desc: 'Hit a 12x streak', icon: 'crown', color: 0x9b59b6, check: s => s.bestStreak >= 12 },
+  { id: 'pop_star', name: 'POP STAR', desc: 'Pop 500 bubbles total', icon: 'star', color: 0x3498db, check: s => s.totalPops >= 500 },
+  { id: 'veteran', name: 'VETERAN', desc: 'Play 25 games', icon: 'badge', color: 0xff6b35, check: s => s.gamesPlayed >= 25 },
+  { id: 'high_roller', name: 'HIGH ROLLER', desc: 'Score 5,000+ in one game', icon: 'crown', color: 0xf1c40f, check: s => s.bestScore >= 5000 },
+];
+
+const Achievements = {
+  _key: 'whatspoppin_achievements',
+  _storage: SafeStorage,
+
+  /** Load set of unlocked achievement IDs */
+  load() {
+    const raw = this._storage.get(this._key, '[]');
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(id => typeof id === 'string');
+    } catch (_) { return []; }
+  },
+
+  /** Check stats and return any newly unlocked achievement IDs */
+  check(stats) {
+    const unlocked = new Set(this.load());
+    const newlyUnlocked = [];
+    for (const ach of ACHIEVEMENTS) {
+      if (!unlocked.has(ach.id) && ach.check(stats)) {
+        unlocked.add(ach.id);
+        newlyUnlocked.push(ach.id);
+      }
+    }
+    if (newlyUnlocked.length > 0) {
+      this._storage.set(this._key, JSON.stringify([...unlocked]));
+    }
+    return newlyUnlocked;
+  },
+
+  count() { return this.load().length; },
+};
+
+/** Show an achievement toast notification in a scene */
+function showAchievementToast(scene, achId) {
+  const ach = ACHIEVEMENTS.find(a => a.id === achId);
+  if (!ach) return;
+  const { width } = scene.scale;
+  const toastY = 50;
+
+  const container = scene.add.container(width / 2, toastY - 60).setDepth(200);
+  const bg = scene.add.graphics();
+  const tw = 260, th = 52;
+  bg.fillStyle(0x12121f, 0.95);
+  bg.fillRoundedRect(-tw / 2, -th / 2, tw, th, 10);
+  bg.lineStyle(1.5, ach.color, 0.7);
+  bg.strokeRoundedRect(-tw / 2, -th / 2, tw, th, 10);
+  container.add(bg);
+
+  const iconFn = Icons[ach.icon] || Icons.badge;
+  const icon = iconFn(scene, -tw / 2 + 24, 0, 18, ach.color);
+  container.add(icon);
+
+  const label = scene.add.text(-tw / 2 + 44, -12, 'UNLOCKED', {
+    fontSize: '9px', fontFamily: UI_FONT, fontStyle: 'bold', color: '#888888',
+  });
+  container.add(label);
+  const nameText = scene.add.text(-tw / 2 + 44, 2, ach.name, {
+    fontSize: '16px', fontFamily: UI_FONT, fontStyle: 'bold',
+    color: '#' + ach.color.toString(16).padStart(6, '0'),
+  });
+  container.add(nameText);
+
+  // Slide in, hold, slide out
+  scene.tweens.add({
+    targets: container, y: toastY, duration: 400, ease: 'Back.easeOut',
+    onComplete: () => {
+      scene.tweens.add({
+        targets: container, y: toastY - 80, alpha: 0,
+        duration: 500, ease: 'Quad.easeIn', delay: 2200,
+        onComplete: () => container.destroy(true),
+      });
+    },
+  });
+}
+
+// =============================================================
 // SHARED UI UTILITIES
 // =============================================================
 
@@ -445,10 +535,19 @@ class TitleScene extends Phaser.Scene {
       });
     }
 
+    // Achievements button
+    const achCount = Achievements.count();
+    const achTotal = ACHIEVEMENTS.length;
+    createButton(this, { x: width / 2, y: btnY + 320, width: btnWidth, height: btnHeight, radius: 12,
+      text: 'ACHIEVEMENTS', subtext: `${achCount} / ${achTotal} unlocked`,
+      iconFn: (s, bx, by) => Icons.badge(s, bx, by, 18, achCount > 0 ? 0xf1c40f : 0x555555),
+      callback: () => this.scene.start('AchievementsScene'),
+    });
+
     // Hall of Fame button
     const hofEntries = HallOfFame.load();
     if (hofEntries.length > 0) {
-      createButton(this, { x: width / 2, y: btnY + 320, width: btnWidth, height: btnHeight, radius: 12,
+      createButton(this, { x: width / 2, y: btnY + 400, width: btnWidth, height: btnHeight, radius: 12,
         text: 'HALL OF FAME', subtext: `Top score: ${hofEntries[0].score.toLocaleString()} — ${hofEntries.length} entries`,
         iconFn: (s, bx, by) => Icons.star(s, bx, by, 18, 0xf1c40f),
         callback: () => this.scene.start('HallOfFameScene'),
@@ -457,7 +556,7 @@ class TitleScene extends Phaser.Scene {
 
     // First-time tutorial check
     if (!SafeStorage.get('whatspoppin_played', null)) {
-      const tutY = (hofEntries.length > 0 ? btnY + 400 : (career.gamesPlayed > 0 ? btnY + 320 : btnY + 240));
+      const tutY = (hofEntries.length > 0 ? btnY + 480 : btnY + 400);
       createButton(this, { x: width / 2, y: tutY, width: btnWidth, height: btnHeight, radius: 12,
         text: 'TUTORIAL', subtext: 'Learn the basics step by step',
         callback: () => this.scene.start('TutorialScene'),
@@ -1375,6 +1474,99 @@ class ScanScene extends Phaser.Scene {
 }
 
 // =============================================================
+// ACHIEVEMENTS SCENE — Badge wall with unlock status
+// =============================================================
+class AchievementsScene extends Phaser.Scene {
+  constructor() { super({ key: 'AchievementsScene' }); }
+
+  create() {
+    const { width, height } = this.scale;
+    drawDarkGridBg(this);
+
+    drawSceneHeader(this, 'ACHIEVEMENTS', { color: '#f1c40f' });
+
+    const unlocked = new Set(Achievements.load());
+    const count = unlocked.size;
+    const total = ACHIEVEMENTS.length;
+
+    // Progress summary
+    this.add.text(width / 2, 62, `${count} / ${total} UNLOCKED`, {
+      fontSize: '13px', fontFamily: UI_FONT, color: '#888888',
+    }).setOrigin(0.5);
+
+    // Progress bar
+    const barX = 30, barY = 80, barW = width - 60, barH = 4;
+    const barGfx = this.add.graphics();
+    barGfx.fillStyle(0x1a1a2e, 1);
+    barGfx.fillRoundedRect(barX, barY, barW, barH, 2);
+    if (count > 0) {
+      barGfx.fillStyle(0xf1c40f, 0.9);
+      barGfx.fillRoundedRect(barX, barY, barW * (count / total), barH, 2);
+    }
+
+    // Badge cards — 2 columns
+    const cardW = (width - 50) / 2;
+    const cardH = 68;
+    const startY = 100;
+    const gfx = this.add.graphics();
+
+    ACHIEVEMENTS.forEach((ach, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const cx = 20 + col * (cardW + 10);
+      const cy = startY + row * (cardH + 8);
+      const isUnlocked = unlocked.has(ach.id);
+
+      // Card background
+      const borderColor = isUnlocked ? ach.color : 0x1a1a2e;
+      drawCard(gfx, { x: cx, y: cy, w: cardW, h: cardH, radius: 8,
+        fillColor: isUnlocked ? 0x151528 : 0x0e0e1a, fillAlpha: 1,
+        borderColor, borderAlpha: isUnlocked ? 0.6 : 0.2, borderWidth: isUnlocked ? 1.5 : 1 });
+
+      // Icon or lock
+      if (isUnlocked) {
+        const iconFn = Icons[ach.icon] || Icons.badge;
+        iconFn(this, cx + 22, cy + cardH / 2, 18, ach.color);
+      } else {
+        Icons.lock(this, cx + 22, cy + cardH / 2, 18, 0x333333);
+      }
+
+      // Name
+      const nameColor = isUnlocked
+        ? '#' + ach.color.toString(16).padStart(6, '0')
+        : '#444444';
+      this.add.text(cx + 42, cy + 16, ach.name, {
+        fontSize: '12px', fontFamily: UI_FONT, fontStyle: 'bold', color: nameColor,
+      });
+
+      // Description
+      this.add.text(cx + 42, cy + 34, ach.desc, {
+        fontSize: '10px', fontFamily: UI_FONT, color: isUnlocked ? '#777777' : '#333333',
+        wordWrap: { width: cardW - 52 },
+      });
+
+      // Glow pulse on unlocked badges
+      if (isUnlocked) {
+        const glowGfx = this.add.graphics();
+        glowGfx.fillStyle(ach.color, 0.08);
+        glowGfx.fillRoundedRect(cx, cy, cardW, cardH, 8);
+        this.tweens.add({
+          targets: glowGfx, alpha: 0, duration: 1800,
+          yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        });
+      }
+    });
+
+    // Back button
+    createButton(this, { x: width / 2, y: height - 36, width: width - 60, height: 38,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
+      callback: () => this.scene.start('TitleScene'),
+    });
+  }
+}
+
+// =============================================================
 // GAME SCENE — Core gameplay
 // =============================================================
 class GameScene extends Phaser.Scene {
@@ -1911,6 +2103,12 @@ class GameScene extends Phaser.Scene {
 
     // Record in Hall of Fame
     const { rank: hofRank } = HallOfFame.record(this.score, this.bestStreak, this.gameMode);
+
+    // Check achievements and show toasts for new unlocks
+    const newAchievements = Achievements.check(career);
+    newAchievements.forEach((achId, i) => {
+      this.time.delayedCall(500 + i * 800, () => showAchievementToast(this, achId));
+    });
 
     // Transition
     this.time.delayedCall(1000, () => {
@@ -2751,7 +2949,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, ScanScene, GameScene, GameOverScene, HallOfFameScene],
+  scene: [BootScene, TitleScene, TutorialScene, TipsScene, StatsScene, ScanScene, AchievementsScene, GameScene, GameOverScene, HallOfFameScene],
 };
 
 const game = new Phaser.Game(config);

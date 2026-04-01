@@ -12,6 +12,7 @@ Built with zero build tools — vanilla JS, Phaser 3, Web Audio API. No framewor
 - **4 characters** — Kira, Blaze, Ronin, Empress — procedurally drawn, each with a unique vibe
 - **Two modes** — Timed (90s countdown) and Zen (infinite). Pause fully freezes all game logic — scene clock, cascade timers, tip rotation, ambient particles
 - **Hall of Fame** — Top 10 ranked leaderboard with gold/silver/bronze medals, streak tier labels, animated glow on new entries. Schema-validated persistence
+- **Achievements** — 8 unlockable badges tied to career milestones (streaks, pops, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
 - **Career Stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
 - **Performance Scan** — Skill bracket rating (Rookie → Mythic), animated stat bars, 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
@@ -65,7 +66,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 │   ├── icons.js        (265)  Procedural icon library — 15 icons, zero external assets
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
-│   ├── game.js       (2,757)  9 scenes, grid logic, scoring, UI utilities, Phaser config
+│   ├── game.js       (2,757)  10 scenes, grid logic, scoring, achievements, UI utilities, Phaser config
 │   └── game.test.js  (1,414)  129 unit tests (Vitest)
 │
 ├── src/styles.css             External styles (zero unsafe-inline CSP)
@@ -84,6 +85,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 | `GameOverScene` | Score display, Hall of Fame rank, replay options |
 | `HallOfFameScene` | Top 10 leaderboard with medals and streak tiers |
 | `StatsScene` | Career stats dashboard — lifetime totals, averages, records |
+| `AchievementsScene` | Badge wall — 8 unlockable achievements with glow effects |
 | `ScanScene` | Performance evaluation — skill bracket, stat bars, challenges |
 | `TutorialScene` | Interactive gameplay walkthrough |
 | `TipsScene` | Tips and hints |
@@ -95,6 +97,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 | `SafeStorage` | `.get(key)` · `.set(key, val)` · `.getInt(key, fallback)` | Checksummed localStorage wrapper |
 | `CareerStats` | `.load()` · `.record(gameData)` · `.save()` | Cross-session stat persistence with schema validation |
 | `HallOfFame` | `.load()` · `.add(entry)` · `.getRank(score)` | Top-10 leaderboard with clamped/validated entries |
+| `Achievements` | `.load()` · `.check(stats)` · `.count()` | Badge unlock tracking with SafeStorage persistence |
 | `AudioEngine` | `.playPop()` · `.playSelect()` · `.playStreakHit()` · `.setMuted(bool)` | Synthesized audio with mute persistence |
 | `PowerUpSystem` | `.analyze(matches)` | Match pattern → power-up type resolution |
 | Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `createButton()` · `drawCard()` | Shared game logic and UI helpers |

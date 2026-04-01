@@ -260,6 +260,40 @@ class Icons {
     g.fillCircle(x, y, 2);
     return g;
   }
+
+  /** Badge/shield icon — hexagonal badge shape for achievements */
+  static badge(scene, x, y, size = 16, color = 0xf1c40f) {
+    const g = scene.add.graphics();
+    const r = size * 0.42;
+    g.fillStyle(color, 0.2);
+    g.lineStyle(1.8, color, 0.9);
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 2;
+      const px = x + r * Math.cos(angle);
+      const py = y + r * Math.sin(angle);
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.closePath();
+    g.fillPath();
+    g.strokePath();
+    // Inner star
+    g.fillStyle(color, 0.8);
+    g.fillCircle(x, y, size * 0.12);
+    return g;
+  }
+
+  /** Lock icon — padlock shape for locked achievements */
+  static lock(scene, x, y, size = 16, color = 0x555555) {
+    const g = scene.add.graphics();
+    const w = size * 0.4, h = size * 0.35;
+    g.fillStyle(color, 0.6);
+    g.fillRoundedRect(x - w / 2, y - h / 4, w, h, 2);
+    g.lineStyle(1.5, color, 0.6);
+    g.strokeCircle(x, y - h / 2, size * 0.15);
+    return g;
+  }
 }
 
 window.Icons = Icons;

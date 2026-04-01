@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] — 2026-04-01
+
+### Added
+- **Achievements System** — 8 unlockable badges driven by CareerStats milestones: First Blood, Combo Kid, Flame On, Demon Time, Transcendent, Pop Star, Veteran, High Roller
+- **AchievementsScene** — Badge wall with 2-column grid layout, progress bar, glow-pulsing unlocked badges, lock icons for undiscovered ones, and color-coded tier borders
+- **Achievement toast notifications** — Slide-in toast appears during gameplay when a badge unlocks, with Back.easeOut entrance and delayed fade-out
+- **Badge and Lock icons** — New procedural icons added to the icon system: hexagonal badge shape and padlock for locked states
+- Achievements button on TitleScene showing unlock progress (always visible, unlike stats/HoF which require play history)
+- Achievement check integrated into `endGame()` — runs after CareerStats.record() so milestones are detected immediately
+
 ## [0.8.5] — 2026-04-01
 
 ### Fixed
