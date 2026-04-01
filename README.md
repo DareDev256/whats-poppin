@@ -31,7 +31,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 117 Vitest unit tests (power-ups, scoring, matching, gravity, milestones, badges, safeDiv/safeScore)
+  game.test.js   — 121 Vitest unit tests (power-ups, scoring, matching, gravity, milestones, badges, safeDiv/safeScore, swap-reversal invariant)
   core.test.js   — 32 Vitest unit tests (scanRuns, textStyle/TEXT_PRESETS, SafeStorage tamper detection)
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
