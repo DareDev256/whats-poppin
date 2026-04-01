@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0] — 2026-04-01
+
+### Added
+- **Cascade Chain Announcer** — When a single move triggers gravity-driven chain reactions, escalating center-screen announcements appear: DOUBLE CHAIN → TRIPLE → MEGA → ULTRA → GODLIKE, with spring-scale entrance animations, color-coded text, and star particle bursts for chains ≥3x
+- **bestChain career stat** — CareerStats now tracks highest cascade chain across sessions, displayed in Career Stats scene and Game Over screen. Schema-validated with sanitization, backwards-compatible with existing save data
+- **CHAIN GANG achievement** — New unlockable badge for triggering a 4x cascade chain (cyan `#00e5ff` themed)
+- **Expanded Career Stats grid** — StatsScene now shows 6 stat cells (3×2 grid): Games Played, Total Pops, Best Score, Best Streak, Best Chain, Avg Score
+- **Chain stat in Game Over** — Game Over scene now shows 4 stats: Moves, Streak, Chain, Avg/Move
+- 2 new CareerStats unit tests: chain tracking and backwards compatibility
+
 ## [0.9.0] — 2026-04-01
 
 ### Added

@@ -9,11 +9,12 @@ Built with zero build tools — vanilla JS, Phaser 3, Web Audio API. No framewor
 - **Core loop** — Swap adjacent bubbles, match 3+ to pop, trigger cascading combos
 - **Power-ups** — Match 4 → Line Clear · Match 5+ → Bomb · L/T shape → Color Nuke
 - **Streak system** — Chain matches for escalating multipliers: 3x NICE → 5x FIRE → 8x GODLIKE → 12x LEGENDARY. Progress bar with tier markers, glow pulses on threshold hits, and camera shake that intensifies with streak tier
+- **Cascade chains** — When a single move triggers gravity-driven chain reactions, escalating announcements appear at screen center: DOUBLE → TRIPLE → MEGA → ULTRA → GODLIKE CHAIN, with spring animations and particle bursts
 - **4 characters** — Kira, Blaze, Ronin, Empress — procedurally drawn, each with a unique vibe
 - **Two modes** — Timed (90s countdown) and Zen (infinite). Pause fully freezes all game logic — scene clock, cascade timers, tip rotation, ambient particles
 - **Hall of Fame** — Top 10 ranked leaderboard with gold/silver/bronze medals, streak tier labels, animated glow on new entries. Schema-validated persistence
-- **Achievements** — 8 unlockable badges tied to career milestones (streaks, pops, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
-- **Career Stats** — Cross-session tracking: games played, total pops, best score/streak, averages, tier unlocks
+- **Achievements** — 9 unlockable badges tied to career milestones (streaks, chains, pops, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
+- **Career Stats** — Cross-session tracking: games played, total pops, best score/streak/chain, averages, tier unlocks
 - **Performance Scan** — Skill bracket rating (Rookie → Mythic), animated stat bars, 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -39,7 +40,7 @@ npx serve . -l 3333
 npm test
 ```
 
-129 unit tests (Vitest), all passing. Coverage:
+130 unit tests (Vitest), all passing. Coverage:
 
 | Module | What's tested |
 |--------|--------------|
@@ -66,8 +67,8 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 │   ├── icons.js        (265)  Procedural icon library — 15 icons, zero external assets
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
-│   ├── game.js       (2,757)  10 scenes, grid logic, scoring, achievements, UI utilities, Phaser config
-│   └── game.test.js  (1,414)  129 unit tests (Vitest)
+│   ├── game.js       (3,048)  10 scenes, grid logic, scoring, achievements, cascade chains, UI utilities, Phaser config
+│   └── game.test.js  (1,432)  130 unit tests (Vitest)
 │
 ├── src/styles.css             External styles (zero unsafe-inline CSP)
 └── src/offline.css            Offline fallback styles
@@ -109,7 +110,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 | Engine | **Phaser 3.90** — loaded from jsDelivr CDN with SRI |
 | Audio | **Web Audio API** — all sound synthesized, zero external files |
 | Language | **Vanilla JS** — no build step, no framework, JSDoc-documented |
-| Tests | **Vitest 4.1** — 129 unit tests |
+| Tests | **Vitest 4.1** — 130 unit tests |
 | Hosting | Static — Vercel, Netlify, or any static host |
 
 ## Security

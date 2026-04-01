@@ -75,7 +75,7 @@ function initAudioWithPrefs() {
 // =============================================================
 const CareerStats = {
   _key: 'whatspoppin_career',
-  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0, bestChain: 0 },
   // Schema: every allowed field, its max sane value, and nothing else gets through
   _schema: {
     gamesPlayed: 100000,
@@ -83,6 +83,7 @@ const CareerStats = {
     totalPops:   1e9,
     bestStreak:  1000,
     bestScore:   1e8,
+    bestChain:   1000,
   },
   _storage: SafeStorage,
 
@@ -117,9 +118,11 @@ const CareerStats = {
     const newRecords = {
       streak: gameData.bestStreak > stats.bestStreak,
       score: gameData.score > stats.bestScore,
+      chain: (gameData.bestChain || 0) > stats.bestChain,
     };
     stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
     stats.bestScore = Math.max(stats.bestScore, gameData.score);
+    stats.bestChain = Math.max(stats.bestChain, gameData.bestChain || 0);
     // Re-sanitize before persisting to enforce bounds after arithmetic
     const sanitized = this._sanitize(stats);
     this._storage.set(this._key, JSON.stringify(sanitized));
@@ -188,6 +191,7 @@ const ACHIEVEMENTS = [
   { id: 'pop_star', name: 'POP STAR', desc: 'Pop 500 bubbles total', icon: 'star', color: 0x3498db, check: s => s.totalPops >= 500 },
   { id: 'veteran', name: 'VETERAN', desc: 'Play 25 games', icon: 'badge', color: 0xff6b35, check: s => s.gamesPlayed >= 25 },
   { id: 'high_roller', name: 'HIGH ROLLER', desc: 'Score 5,000+ in one game', icon: 'crown', color: 0xf1c40f, check: s => s.bestScore >= 5000 },
+  { id: 'chain_gang', name: 'CHAIN GANG', desc: 'Trigger a 4x cascade chain', icon: 'fire', color: 0x00e5ff, check: s => s.bestChain >= 4 },
 ];
 
 const Achievements = {
@@ -646,7 +650,7 @@ class GameOverScene extends Phaser.Scene {
 
   create(data) {
     const { width, height } = this.scale;
-    const { score, bestStreak, moves, isNewHigh, mode, hofRank } = data;
+    const { score, bestStreak, bestChain, moves, isNewHigh, mode, hofRank } = data;
     this._mode = mode || 'timed';
 
     // Background
@@ -730,19 +734,24 @@ class GameOverScene extends Phaser.Scene {
 
     // Stats
     const statsY = cardY + 140;
-    this.add.text(width * 0.25, statsY, `MOVES\n${moves}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
+    this.add.text(width * 0.2, statsY, `MOVES\n${moves}`, {
+      fontSize: '13px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
-    this.add.text(width * 0.5, statsY, `BEST STREAK\n${bestStreak}x`, {
-      fontSize: '14px', fontFamily: UI_FONT,
+    this.add.text(width * 0.4, statsY, `STREAK\n${bestStreak}x`, {
+      fontSize: '13px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
+    }).setOrigin(0.5);
+
+    this.add.text(width * 0.6, statsY, `CHAIN\n${(bestChain || 0) > 0 ? bestChain + 'x' : '—'}`, {
+      fontSize: '13px', fontFamily: UI_FONT,
+      color: (bestChain || 0) >= 4 ? '#00e5ff' : '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
     const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
-    this.add.text(width * 0.75, statsY, `AVG/MOVE\n${avgPerMove}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
+    this.add.text(width * 0.8, statsY, `AVG/MOVE\n${avgPerMove}`, {
+      fontSize: '13px', fontFamily: UI_FONT,
       color: '#aaaaaa', align: 'center',
     }).setOrigin(0.5);
 
@@ -1215,6 +1224,8 @@ class StatsScene extends Phaser.Scene {
       { label: 'TOTAL POPS', value: stats.totalPops.toLocaleString(), color: '#e74c3c' },
       { label: 'BEST SCORE', value: stats.bestScore.toLocaleString(), color: '#f1c40f' },
       { label: 'BEST STREAK', value: `${stats.bestStreak}x`, color: '#9b59b6' },
+      { label: 'BEST CHAIN', value: stats.bestChain > 0 ? `${stats.bestChain}x` : '—', color: '#00e5ff' },
+      { label: 'AVG SCORE', value: (stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0).toLocaleString(), color: '#ff6b35' },
     ];
 
     statCells.forEach((cell, i) => {
@@ -1238,7 +1249,8 @@ class StatsScene extends Phaser.Scene {
     });
 
     // — Lifetime totals bar —
-    const barY = gridY + 2 * (cellH + 8) + 8;
+    const numRows = Math.ceil(statCells.length / 2);
+    const barY = gridY + numRows * (cellH + 8) + 8;
     drawCard(bg, { x: cardX, y: barY, w: cardW, h: 52, borderColor: 0x2ecc71 });
 
     this.add.text(width / 2, barY + 14, 'LIFETIME SCORE', {
@@ -1589,6 +1601,8 @@ class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.powerUpOverlay = null;
     this.pauseContainer = null;
+    this.cascadeDepth = 0;
+    this.bestChain = 0;
   }
 
   create() {
@@ -1985,7 +1999,7 @@ class GameScene extends Phaser.Scene {
       callback: () => {
         this.cleanupPause();
         if (!this.gameOver && (this.score > 0 || this.totalPops > 0)) {
-          CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak });
+          CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak, bestChain: this.bestChain });
           const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
           if (this.score > highScore) {
             SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
@@ -2099,6 +2113,7 @@ class GameScene extends Phaser.Scene {
       score: this.score,
       pops: this.totalPops,
       bestStreak: this.bestStreak,
+      bestChain: this.bestChain,
     });
 
     // Record in Hall of Fame
@@ -2115,6 +2130,7 @@ class GameScene extends Phaser.Scene {
       this.scene.start('GameOverScene', {
         score: this.score,
         bestStreak: this.bestStreak,
+        bestChain: this.bestChain,
         moves: this.moveCount,
         isNewHigh,
         career,
@@ -2336,6 +2352,7 @@ class GameScene extends Phaser.Scene {
           this.cameras.main.shake(100, 0.003);
         } else {
           this.moveCount++;
+          this.cascadeDepth = 0;
           this.processMatches(matches);
         }
       }
@@ -2570,6 +2587,9 @@ class GameScene extends Phaser.Scene {
           if (this.gameOver) return;
           const newMatches = this.findAllMatches();
           if (newMatches.length > 0) {
+            this.cascadeDepth++;
+            if (this.cascadeDepth > this.bestChain) this.bestChain = this.cascadeDepth;
+            if (this.cascadeDepth >= 2) this.showChainAnnouncement(this.cascadeDepth);
             this.processMatches(newMatches);
           } else {
             if (!this.hasPossibleMoves()) this.reshuffleGrid();
@@ -2614,6 +2634,79 @@ class GameScene extends Phaser.Scene {
       // Full screen color flash
       this.screenFlash(0xffd700);
       this.cameras.main.shake(300, 0.02);
+    }
+  }
+
+  /**
+   * Show an escalating chain reaction announcement at screen center.
+   * Triggered when cascade depth ≥ 2 (gravity-driven automatic matches).
+   * @param {number} depth — Cascade depth (2 = double, 3 = triple, etc.)
+   */
+  showChainAnnouncement(depth) {
+    const { width, height } = this.scale;
+    const CHAIN_LEVELS = [
+      { min: 2, label: 'DOUBLE',  color: '#3498db', size: 26 },
+      { min: 3, label: 'TRIPLE',  color: '#2ecc71', size: 32 },
+      { min: 4, label: 'MEGA',    color: '#f1c40f', size: 38 },
+      { min: 5, label: 'ULTRA',   color: '#e74c3c', size: 44 },
+      { min: 7, label: 'GODLIKE', color: '#9b59b6', size: 50 },
+    ];
+    let level = null;
+    for (let i = CHAIN_LEVELS.length - 1; i >= 0; i--) {
+      if (depth >= CHAIN_LEVELS[i].min) { level = CHAIN_LEVELS[i]; break; }
+    }
+    if (!level) return;
+
+    const label = this.add.text(width / 2, height * 0.38, `${level.label} CHAIN!`, {
+      fontSize: `${level.size}px`, fontFamily: UI_FONT,
+      fontStyle: 'bold', color: level.color,
+      stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(30).setAlpha(0).setScale(0.3);
+
+    // Subtext showing chain depth
+    const sub = this.add.text(width / 2, height * 0.38 + level.size * 0.7, `${depth}x cascade`, {
+      fontSize: '13px', fontFamily: UI_FONT,
+      color: level.color, fontStyle: 'italic',
+      stroke: '#000000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(30).setAlpha(0);
+
+    // Entrance: spring scale-up
+    this.tweens.add({
+      targets: label, alpha: 1, scale: 1.1,
+      duration: 250, ease: 'Back.easeOut',
+    });
+    this.tweens.add({
+      targets: sub, alpha: 0.8, duration: 200, delay: 100,
+    });
+
+    // Exit: float up and fade
+    this.tweens.add({
+      targets: [label, sub], y: '-=50', alpha: 0,
+      duration: 600, ease: 'Quad.easeIn', delay: 700,
+      onComplete: () => { label.destroy(); sub.destroy(); },
+    });
+
+    // Screen flash for high chains
+    if (depth >= 4) {
+      this.screenFlash(Phaser.Display.Color.HexStringToColor(level.color).color);
+    }
+    // Extra particles burst for mega chains
+    if (depth >= 3) {
+      const clr = Phaser.Display.Color.HexStringToColor(level.color).color;
+      for (let i = 0; i < depth * 3; i++) {
+        const p = this.add.image(width / 2, height * 0.38, 'star');
+        p.setTint(clr).setScale(0.4).setDepth(29).setAlpha(0.9);
+        const angle = (Math.PI * 2 / (depth * 3)) * i;
+        const dist = 60 + depth * 15;
+        this.tweens.add({
+          targets: p,
+          x: width / 2 + Math.cos(angle) * dist,
+          y: height * 0.38 + Math.sin(angle) * dist,
+          alpha: 0, scale: 0, duration: 500, delay: 100,
+          ease: 'Quad.easeOut',
+          onComplete: () => p.destroy(),
+        });
+      }
     }
   }
 

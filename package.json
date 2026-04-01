@@ -1,6 +1,6 @@
 {
   "name": "whats-poppin",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Bubble pop game with cultural sauce — match, combo, dominate",
   "main": "index.html",
   "scripts": {

@@ -955,13 +955,14 @@ describe('SafeStorage', () => {
 // ══════════════════════════════════════════════════════════════
 const CareerStats = {
   _key: 'whatspoppin_career',
-  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0 },
+  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0, bestChain: 0 },
   _schema: {
     gamesPlayed: 100000,
     totalScore:  1e9,
     totalPops:   1e9,
     bestStreak:  1000,
     bestScore:   1e8,
+    bestChain:   1000,
   },
   _storage: SafeStorage,
 
@@ -995,9 +996,11 @@ const CareerStats = {
     const newRecords = {
       streak: gameData.bestStreak > stats.bestStreak,
       score: gameData.score > stats.bestScore,
+      chain: (gameData.bestChain || 0) > stats.bestChain,
     };
     stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
     stats.bestScore = Math.max(stats.bestScore, gameData.score);
+    stats.bestChain = Math.max(stats.bestChain, gameData.bestChain || 0);
     const sanitized = this._sanitize(stats);
     this._storage.set(this._key, JSON.stringify(sanitized));
     return { stats: sanitized, newRecords };
@@ -1049,16 +1052,31 @@ describe('CareerStats', () => {
     expect(stats.bestScore).toBe(500);
   });
 
+  it('record tracks best chain (keeps highest)', () => {
+    CareerStats.record({ score: 100, pops: 10, bestStreak: 3, bestChain: 4 });
+    CareerStats.record({ score: 200, pops: 20, bestStreak: 5, bestChain: 2 }); // lower chain
+    const stats = CareerStats.load();
+    expect(stats.bestChain).toBe(4); // kept the 4
+  });
+
+  it('record handles missing bestChain gracefully (backwards compat)', () => {
+    CareerStats.record({ score: 100, pops: 10, bestStreak: 3 }); // no bestChain
+    const stats = CareerStats.load();
+    expect(stats.bestChain).toBe(0);
+  });
+
   it('record returns newRecords flags correctly', () => {
     // First game — everything is a record
-    const { newRecords: r1 } = CareerStats.record({ score: 100, pops: 10, bestStreak: 3 });
+    const { newRecords: r1 } = CareerStats.record({ score: 100, pops: 10, bestStreak: 3, bestChain: 2 });
     expect(r1.score).toBe(true);
     expect(r1.streak).toBe(true);
+    expect(r1.chain).toBe(true);
 
     // Second game — lower stats, no records
-    const { newRecords: r2 } = CareerStats.record({ score: 50, pops: 5, bestStreak: 2 });
+    const { newRecords: r2 } = CareerStats.record({ score: 50, pops: 5, bestStreak: 2, bestChain: 1 });
     expect(r2.score).toBe(false);
     expect(r2.streak).toBe(false);
+    expect(r2.chain).toBe(false);
 
     // Third game — new score record only
     const { newRecords: r3 } = CareerStats.record({ score: 200, pops: 15, bestStreak: 2 });
