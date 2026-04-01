@@ -114,13 +114,13 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 This game runs entirely client-side with no backend, but ships with defense-in-depth:
 
 - **SRI** — CDN Phaser script verified with SHA-384 subresource integrity
-- **CSP** — Zero `unsafe-inline` across all code paths (main page, SW responses, offline fallback). Scripts: `'self'` + jsDelivr CDN. Styles: `'self'` only
+- **CSP** — Zero `unsafe-inline` across all code paths (main page, SW responses, offline fallback). Scripts: `'self'` + jsDelivr CDN. Styles: `'self'` only. `object-src 'none'` blocks plugin execution. `upgrade-insecure-requests` forces HTTPS subresources
 - **Permissions-Policy** — Disables camera, mic, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents leakage to third parties
 - **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
 - **CareerStats sanitization** — Schema-validated deserialization: key whitelist, type enforcement, non-negative clamping, upper-bound limits
 - **HallOfFame sanitization** — Per-entry validation: score clamped to 1e8, streak to 1000, mode whitelist, date regex
-- **SW hardening** — Service worker validates response origins, injects CSP on all synthesized responses
+- **SW hardening** — Service worker validates response origins, injects CSP on all synthesized responses, `clients.claim()` ensures security patches propagate immediately
 
 ## Credits
 
