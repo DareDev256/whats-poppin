@@ -9,7 +9,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 - **Streak system** — Chain matches for multipliers (×2–×10), unlock characters at 3x/5x/8x/12x. Live multiplier badge shows your current bonus mid-game with tier-colored ring, bounce-in animation, and pulsing glow at ×8+
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
 - **Synthesized audio** — Lo-fi beat, melodic pops, 808 bass hits, streak SFX (Web Audio API). Internal `_tone()` helper makes adding new sounds trivial
-- **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle. 3 charges in timed, unlimited in zen (see [Hint & Auto-Select System](#hint--auto-select-system) below)
+- **Hint system** — Tap the lightbulb to reveal a valid move; auto-hints after 5s idle (resets on interaction or after hint fires). 3 charges in timed, unlimited in zen. Hints safely clear if referenced bubbles are destroyed by cascades (see [Hint & Auto-Select System](#hint--auto-select-system) below)
 - **Sound toggle** — Mute/unmute from title screen or in-game HUD. Preference persists across sessions via SafeStorage
 - **Performance grades** — Earn S/A/B/C/D/F grades based on score + streak combo. S-grade requires 5000+ score AND 8+ streak — dramatic reveal animation with pulsing glow. Best grade persists per mode, included in share card
 - **Fever Mode** — Chain matches to fill the left-edge meter. At 100%, FEVER MODE activates with 2× score multiplier, pulsing gold border, and enhanced star-burst particles. Keep matching during fever to extend the timer (up to 10s). The meter drains during idle moments — stay aggressive. Fever count shown in game over stats and share card
@@ -31,7 +31,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 121 Vitest unit tests (power-ups, scoring, matching, gravity, milestones, badges, safeDiv/safeScore, swap-reversal invariant)
+  game.test.js   — 124 Vitest unit tests (power-ups, scoring, matching, gravity, milestones, badges, safeDiv/safeScore, swap-reversal invariant, hint render safety)
   core.test.js   — 32 Vitest unit tests (scanRuns, textStyle/TEXT_PRESETS, SafeStorage tamper detection)
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script
