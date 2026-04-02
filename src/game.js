@@ -70,6 +70,45 @@ function initAudioWithPrefs() {
   window.audioEngine.setMuted(wasMuted);
 }
 
+/**
+ * Build a Phaser text style object with UI_FONT as the default family.
+ * Merges caller overrides onto sensible defaults so inline style literals
+ * don't need to repeat `fontFamily` 72+ times across every scene.
+ * @param {string} size - CSS font-size value (e.g. '14px', '28px')
+ * @param {string} color - CSS color string (e.g. '#aaaaaa', '#f1c40f')
+ * @param {object} [extra] - Additional Phaser text style properties to merge
+ * @returns {object} A complete Phaser text style config
+ */
+function textStyle(size, color, extra = {}) {
+  return { fontSize: size, fontFamily: UI_FONT, color, ...extra };
+}
+
+/**
+ * Save a new high score to SafeStorage if it exceeds the current record.
+ * Centralizes the clamp-floor-stringify-compare pattern used on game-over and exit.
+ * @param {number} score - Raw score to evaluate
+ * @returns {boolean} True if a new record was set
+ */
+function saveHighScore(score) {
+  const current = SafeStorage.getInt('whatspoppin_highscore', 0);
+  if (score > current) {
+    SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(score)).toString());
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Toggle mute state and persist the preference to SafeStorage.
+ * Replaces the duplicated toggleMute → set pattern across TitleScene and GameScene.
+ * @returns {boolean} The new muted state
+ */
+function toggleMuteAndSave() {
+  const nowMuted = window.audioEngine.toggleMute();
+  SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+  return nowMuted;
+}
+
 // =============================================================
 // CAREER STATS — Cross-session stat tracking with SafeStorage
 // =============================================================
@@ -316,10 +355,9 @@ function drawCard(gfx, opts) {
 function drawSceneHeader(scene, text, opts = {}) {
   const { width } = scene.scale;
   const { color = '#ffffff', y = 30 } = opts;
-  return scene.add.text(width / 2, y, text, {
-    fontSize: '28px', fontFamily: UI_FONT,
-    fontStyle: 'bold', color, stroke: '#000000', strokeThickness: 4,
-  }).setOrigin(0.5);
+  return scene.add.text(width / 2, y, text,
+    textStyle('28px', color, { fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }),
+  ).setOrigin(0.5);
 }
 
 /**
@@ -355,16 +393,15 @@ function createButton(scene, opts) {
   }
 
   const textOffset = iconFn ? (subtext ? 12 : 8) : 0;
-  const label = scene.add.text(x + textOffset, y - (subtext ? 8 : 0), text, {
-    fontSize: subtext ? '20px' : '16px', fontFamily: UI_FONT,
-    fontStyle: 'bold', color: defaultBorder ? '#ffffff' : color,
-  }).setOrigin(0.5);
+  const label = scene.add.text(x + textOffset, y - (subtext ? 8 : 0), text,
+    textStyle(subtext ? '20px' : '16px', defaultBorder ? '#ffffff' : color, { fontStyle: 'bold' }),
+  ).setOrigin(0.5);
   if (container) container.add(label);
 
   if (subtext) {
-    const sub = scene.add.text(x + textOffset, y + 14, subtext, {
-      fontSize: '11px', fontFamily: UI_FONT, color: '#555555',
-    }).setOrigin(0.5);
+    const sub = scene.add.text(x + textOffset, y + 14, subtext,
+      textStyle('11px', '#555555'),
+    ).setOrigin(0.5);
     if (container) container.add(sub);
   }
 
@@ -466,23 +503,13 @@ class TitleScene extends Phaser.Scene {
     }
 
     // Title
-    const title = this.add.text(width / 2, height * 0.18, 'WHAT\'S', {
-      fontSize: '40px',
-      fontFamily: UI_FONT,
-      fontStyle: 'bold',
-      color: '#f1c40f',
-      stroke: '#000000',
-      strokeThickness: 5,
-    }).setOrigin(0.5);
+    const title = this.add.text(width / 2, height * 0.18, 'WHAT\'S',
+      textStyle('40px', '#f1c40f', { fontStyle: 'bold', stroke: '#000000', strokeThickness: 5 }),
+    ).setOrigin(0.5);
 
-    const subtitle = this.add.text(width / 2, height * 0.27, 'POPPIN', {
-      fontSize: '64px',
-      fontFamily: UI_FONT,
-      fontStyle: 'bold',
-      color: '#e74c3c',
-      stroke: '#000000',
-      strokeThickness: 7,
-    }).setOrigin(0.5);
+    const subtitle = this.add.text(width / 2, height * 0.27, 'POPPIN',
+      textStyle('64px', '#e74c3c', { fontStyle: 'bold', stroke: '#000000', strokeThickness: 7 }),
+    ).setOrigin(0.5);
 
     // Pulsing title
     this.tweens.add({
@@ -495,12 +522,9 @@ class TitleScene extends Phaser.Scene {
     });
 
     // Tagline
-    this.add.text(width / 2, height * 0.36, 'match  /  combo  /  dominate', {
-      fontSize: '14px',
-      fontFamily: UI_FONT,
-      color: '#666666',
-      letterSpacing: 2,
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.36, 'match  /  combo  /  dominate',
+      textStyle('14px', '#666666', { letterSpacing: 2 }),
+    ).setOrigin(0.5);
 
     // Mode buttons
     const btnY = height * 0.47;
@@ -571,25 +595,18 @@ class TitleScene extends Phaser.Scene {
     const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
     if (highScore > 0) {
       Icons.star(this, width / 2 - 100, height * 0.85, 14, 0xf1c40f);
-      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`, {
-        fontSize: '18px',
-        fontFamily: UI_FONT,
-        fontStyle: 'bold',
-        color: '#f1c40f',
-        stroke: '#000000',
-        strokeThickness: 3,
-      }).setOrigin(0.5);
+      this.add.text(width / 2, height * 0.85, `HIGH SCORE: ${highScore.toLocaleString()}`,
+        textStyle('18px', '#f1c40f', { fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }),
+      ).setOrigin(0.5);
     }
 
     // Sound toggle (top-right corner)
     this._buildSoundToggle(width);
 
     // Credits
-    this.add.text(width / 2, height * 0.93, 'by DareDev256', {
-      fontSize: '12px',
-      fontFamily: UI_FONT,
-      color: '#444444',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, height * 0.93, 'by DareDev256',
+      textStyle('12px', '#444444'),
+    ).setOrigin(0.5);
 
     // Init audio on first interaction
     this.input.once('pointerdown', () => initAudioWithPrefs());
@@ -620,8 +637,7 @@ class TitleScene extends Phaser.Scene {
     hit.on('pointerout', () => this._drawSoundBtnBg(btnX, btnY, btnSize, false));
     hit.on('pointerdown', () => {
       initAudioWithPrefs();
-      const nowMuted = window.audioEngine.toggleMute();
-      SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+      const nowMuted = toggleMuteAndSave();
 
       // Redraw icon
       this.soundIcon.destroy();
@@ -683,15 +699,11 @@ class GameOverScene extends Phaser.Scene {
       fillAlpha: 1, borderColor: 0x2a2a4a, borderAlpha: 0.8, borderWidth: 2 });
 
     // Score
-    this.add.text(width / 2, cardY + 30, 'FINAL SCORE', {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#888888',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, cardY + 30, 'FINAL SCORE', textStyle('14px', '#888888')).setOrigin(0.5);
 
-    const scoreText = this.add.text(width / 2, cardY + 65, '0', {
-      fontSize: '48px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#f1c40f', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    const scoreText = this.add.text(width / 2, cardY + 65, '0',
+      textStyle('48px', '#f1c40f', { fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }),
+    ).setOrigin(0.5);
 
     // Animate score counting up
     let displayScore = 0;
@@ -708,10 +720,9 @@ class GameOverScene extends Phaser.Scene {
     if (isNewHigh) {
       Icons.star(this, width / 2 - 95, cardY + 100, 12, 0xf1c40f);
       Icons.star(this, width / 2 + 95, cardY + 100, 12, 0xf1c40f);
-      const badge = this.add.text(width / 2, cardY + 100, 'NEW HIGH SCORE', {
-        fontSize: '18px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: '#f1c40f',
-      }).setOrigin(0.5).setAlpha(0);
+      const badge = this.add.text(width / 2, cardY + 100, 'NEW HIGH SCORE',
+        textStyle('18px', '#f1c40f', { fontStyle: 'bold' }),
+      ).setOrigin(0.5).setAlpha(0);
 
       this.tweens.add({
         targets: badge, alpha: 1, duration: 300, delay: 1800,
@@ -725,35 +736,25 @@ class GameOverScene extends Phaser.Scene {
     // Hall of Fame rank badge
     if (hofRank > 0 && hofRank <= 10 && !isNewHigh) {
       const rankText = hofRank <= 3 ? ['👑 #1', '⚔️ #2', '🔥 #3'][hofRank - 1] : `#${hofRank}`;
-      const rankBadge = this.add.text(width / 2, cardY + 100, `HALL OF FAME ${rankText}`, {
-        fontSize: '15px', fontFamily: UI_FONT, fontStyle: 'bold',
-        color: hofRank <= 3 ? '#f1c40f' : '#2ecc71',
-      }).setOrigin(0.5).setAlpha(0);
+      const rankBadge = this.add.text(width / 2, cardY + 100, `HALL OF FAME ${rankText}`,
+        textStyle('15px', hofRank <= 3 ? '#f1c40f' : '#2ecc71', { fontStyle: 'bold' }),
+      ).setOrigin(0.5).setAlpha(0);
       this.tweens.add({ targets: rankBadge, alpha: 1, duration: 400, delay: 1800 });
     }
 
     // Stats
     const statsY = cardY + 140;
-    this.add.text(width * 0.2, statsY, `MOVES\n${moves}`, {
-      fontSize: '13px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    const statCell = (xFrac, label, val, color = '#aaaaaa') =>
+      this.add.text(width * xFrac, statsY, `${label}\n${val}`,
+        textStyle('13px', color, { align: 'center' }),
+      ).setOrigin(0.5);
 
-    this.add.text(width * 0.4, statsY, `STREAK\n${bestStreak}x`, {
-      fontSize: '13px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
-
-    this.add.text(width * 0.6, statsY, `CHAIN\n${(bestChain || 0) > 0 ? bestChain + 'x' : '—'}`, {
-      fontSize: '13px', fontFamily: UI_FONT,
-      color: (bestChain || 0) >= 4 ? '#00e5ff' : '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
-
+    statCell(0.2, 'MOVES', moves);
+    statCell(0.4, 'STREAK', `${bestStreak}x`);
+    statCell(0.6, 'CHAIN', (bestChain || 0) > 0 ? bestChain + 'x' : '—',
+      (bestChain || 0) >= 4 ? '#00e5ff' : '#aaaaaa');
     const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
-    this.add.text(width * 0.8, statsY, `AVG/MOVE\n${avgPerMove}`, {
-      fontSize: '13px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    statCell(0.8, 'AVG/MOVE', avgPerMove);
 
     // Streak tier achieved
     const tierLevel = getStreakTier(bestStreak);
@@ -1237,15 +1238,13 @@ class StatsScene extends Phaser.Scene {
       drawCard(bg, { x: cx, y: cy, w: cellW, h: cellH,
         borderColor: Phaser.Display.Color.HexStringToColor(cell.color).color });
 
-      this.add.text(cx + cellW / 2, cy + 18, cell.label, {
-        fontSize: '10px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: '#666666', align: 'center',
-      }).setOrigin(0.5);
+      this.add.text(cx + cellW / 2, cy + 18, cell.label,
+        textStyle('10px', '#666666', { fontStyle: 'bold', align: 'center' }),
+      ).setOrigin(0.5);
 
-      this.add.text(cx + cellW / 2, cy + 48, cell.value, {
-        fontSize: '28px', fontFamily: UI_FONT,
-        fontStyle: 'bold', color: cell.color,
-      }).setOrigin(0.5);
+      this.add.text(cx + cellW / 2, cy + 48, cell.value,
+        textStyle('28px', cell.color, { fontStyle: 'bold' }),
+      ).setOrigin(0.5);
     });
 
     // — Lifetime totals bar —
@@ -1253,37 +1252,32 @@ class StatsScene extends Phaser.Scene {
     const barY = gridY + numRows * (cellH + 8) + 8;
     drawCard(bg, { x: cardX, y: barY, w: cardW, h: 52, borderColor: 0x2ecc71 });
 
-    this.add.text(width / 2, barY + 14, 'LIFETIME SCORE', {
-      fontSize: '10px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#666666',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, barY + 14, 'LIFETIME SCORE',
+      textStyle('10px', '#666666', { fontStyle: 'bold' }),
+    ).setOrigin(0.5);
 
-    this.add.text(width / 2, barY + 36, stats.totalScore.toLocaleString(), {
-      fontSize: '22px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#2ecc71',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, barY + 36, stats.totalScore.toLocaleString(),
+      textStyle('22px', '#2ecc71', { fontStyle: 'bold' }),
+    ).setOrigin(0.5);
 
     // — Averages section —
     const avgY = barY + 68;
     drawCard(bg, { x: cardX, y: avgY, w: cardW, h: 58 });
 
-    this.add.text(width / 2, avgY + 12, 'AVERAGES', {
-      fontSize: '10px', fontFamily: UI_FONT,
-      fontStyle: 'bold', color: '#555555',
-    }).setOrigin(0.5);
+    this.add.text(width / 2, avgY + 12, 'AVERAGES',
+      textStyle('10px', '#555555', { fontStyle: 'bold' }),
+    ).setOrigin(0.5);
 
     const avgScore = stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0;
     const avgPops = stats.gamesPlayed > 0 ? Math.round(stats.totalPops / stats.gamesPlayed) : 0;
 
-    this.add.text(width * 0.3, avgY + 38, `${avgScore.toLocaleString()}\nper game`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    this.add.text(width * 0.3, avgY + 38, `${avgScore.toLocaleString()}\nper game`,
+      textStyle('14px', '#aaaaaa', { align: 'center' }),
+    ).setOrigin(0.5);
 
-    this.add.text(width * 0.7, avgY + 38, `${avgPops.toLocaleString()}\npops/game`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    this.add.text(width * 0.7, avgY + 38, `${avgPops.toLocaleString()}\npops/game`,
+      textStyle('14px', '#aaaaaa', { align: 'center' }),
+    ).setOrigin(0.5);
 
     // — Streak tier unlocked —
     const tierY = avgY + 75;
@@ -1294,20 +1288,14 @@ class StatsScene extends Phaser.Scene {
         drawCard(bg, { x: cardX, y: tierY, w: cardW, h: 80,
           borderColor: Phaser.Display.Color.HexStringToColor(tierLevel.color).color });
 
-        this.add.text(cardX + 12, tierY + 10, 'HIGHEST TIER', {
-          fontSize: '10px', fontFamily: UI_FONT,
-          fontStyle: 'bold', color: '#555555',
-        });
+        this.add.text(cardX + 12, tierY + 10, 'HIGHEST TIER',
+          textStyle('10px', '#555555', { fontStyle: 'bold' }));
 
-        this.add.text(cardX + 12, tierY + 30, `${tierLevel.label}`, {
-          fontSize: '22px', fontFamily: UI_FONT,
-          fontStyle: 'bold', color: tierLevel.color,
-        });
+        this.add.text(cardX + 12, tierY + 30, `${tierLevel.label}`,
+          textStyle('22px', tierLevel.color, { fontStyle: 'bold' }));
 
-        this.add.text(cardX + 12, tierY + 58, `${char.name} — ${char.title}`, {
-          fontSize: '12px', fontFamily: UI_FONT,
-          fontStyle: 'italic', color: tierLevel.color,
-        });
+        this.add.text(cardX + 12, tierY + 58, `${char.name} — ${char.title}`,
+          textStyle('12px', tierLevel.color, { fontStyle: 'italic' }));
 
         const charGfx = this.add.graphics();
         char.draw(charGfx, width - 55, tierY + 40, 0.7);
@@ -1970,8 +1958,7 @@ class GameScene extends Phaser.Scene {
       text: soundBtnText, color: soundBtnColor, container: this.pauseContainer,
       iconFn: soundIconFn,
       callback: () => {
-        const nowMuted = window.audioEngine.toggleMute();
-        SafeStorage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+        const nowMuted = toggleMuteAndSave();
         // Rebuild pause menu to reflect new state
         this.cleanupPause();
         this.pauseGame();
@@ -2000,10 +1987,7 @@ class GameScene extends Phaser.Scene {
         this.cleanupPause();
         if (!this.gameOver && (this.score > 0 || this.totalPops > 0)) {
           CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak, bestChain: this.bestChain });
-          const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
-          if (this.score > highScore) {
-            SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
-          }
+          saveHighScore(this.score);
         }
         window.audioEngine.stopBgBeat();
         this.scene.start('TitleScene');
@@ -2102,11 +2086,7 @@ class GameScene extends Phaser.Scene {
     // Play final sound
     window.audioEngine.playStreakHit(12);
 
-    const highScore = SafeStorage.getInt('whatspoppin_highscore', 0);
-    const isNewHigh = this.score > highScore;
-    if (isNewHigh) {
-      SafeStorage.set('whatspoppin_highscore', Math.max(0, Math.floor(this.score)).toString());
-    }
+    const isNewHigh = saveHighScore(this.score);
 
     // Record career stats
     const { stats: career, newRecords } = CareerStats.record({

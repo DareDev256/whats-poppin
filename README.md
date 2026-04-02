@@ -101,7 +101,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 | `Achievements` | `.load()` · `.check(stats)` · `.count()` | Badge unlock tracking with SafeStorage persistence |
 | `AudioEngine` | `.playPop()` · `.playSelect()` · `.playStreakHit()` · `.setMuted(bool)` | Synthesized audio with mute persistence |
 | `PowerUpSystem` | `.analyze(matches)` | Match pattern → power-up type resolution |
-| Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `createButton()` · `drawCard()` | Shared game logic and UI helpers |
+| Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `textStyle(size, color, extra?)` · `saveHighScore(score)` · `toggleMuteAndSave()` · `createButton()` · `drawCard()` | Shared game logic, text style factory, and UI helpers |
 
 ## Tech Stack
 

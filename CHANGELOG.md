@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1] — 2026-04-02
+
+### Changed
+- **Extracted `textStyle()` factory** — Replaces 72 inline `fontFamily: UI_FONT` style objects with a concise builder function, making text styles a single-point edit and reducing visual clutter across all scenes
+- **Extracted `saveHighScore(score)`** — Centralizes the duplicated clamp-floor-stringify-compare pattern from game-over and pause-exit into one utility, preventing subtle divergence bugs
+- **Extracted `toggleMuteAndSave()`** — Unifies the mute toggle + SafeStorage persist pattern used by TitleScene and GameScene pause menu
+- **ResultScene stat cells** — Replaced 4 near-identical `add.text()` blocks with a `statCell()` local helper, cutting 12 lines of repetition to 4
+
 ## [0.10.0] — 2026-04-01
 
 ### Added
