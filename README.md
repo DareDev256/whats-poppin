@@ -40,7 +40,7 @@ npx serve . -l 3333
 npm test
 ```
 
-130 unit tests (Vitest), all passing. Coverage:
+162 unit tests (Vitest), all passing. Coverage:
 
 | Module | What's tested |
 |--------|--------------|
@@ -52,11 +52,16 @@ npm test
 | **Grid Logic** | Match-finding (cross-shaped, boundary, null gaps), gravity/drop, adjacency validation, swap edge cases, deadlock detection |
 | **Scoring** | Formula boundaries, zero streak, size-bonus thresholds, streak tier resolution, adlib selection |
 | **ScanScene** | Skill bracket resolution, efficiency calculation, progressive challenge generation |
+| **textStyle** | Factory output, extra merge/override, object independence |
+| **saveHighScore** | New/beat/lower/equal scores, fractional floor, negative clamp |
+| **toggleMuteAndSave** | Mute/unmute persistence, round-trip state |
+| **Achievements** | Load/check/count, multi-unlock, idempotency, corrupted JSON, type injection, chain_gang threshold |
+| **Chain Levels** | Cascade tier resolution, null below threshold, escalating sizes, unique colors |
 
 ## Architecture
 
 ```
-whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
+whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 ├── index.html                 Entry point — CSP headers, SRI-verified CDN script, load order
 ├── sw.js                      Service worker — caching, offline fallback, CSP enforcement
 ├── manifest.json              PWA manifest
@@ -68,7 +73,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
 │   ├── game.js       (3,048)  10 scenes, grid logic, scoring, achievements, cascade chains, UI utilities, Phaser config
-│   └── game.test.js  (1,432)  130 unit tests (Vitest)
+│   └── game.test.js  (1,630)  162 unit tests (Vitest)
 │
 ├── src/styles.css             External styles (zero unsafe-inline CSP)
 └── src/offline.css            Offline fallback styles
@@ -110,7 +115,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,400 LOC (tests)
 | Engine | **Phaser 3.90** — loaded from jsDelivr CDN with SRI |
 | Audio | **Web Audio API** — all sound synthesized, zero external files |
 | Language | **Vanilla JS** — no build step, no framework, JSDoc-documented |
-| Tests | **Vitest 4.1** — 130 unit tests |
+| Tests | **Vitest 4.1** — 162 unit tests |
 | Hosting | Static — Vercel, Netlify, or any static host |
 
 ## Security

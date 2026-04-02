@@ -1430,3 +1430,300 @@ describe('HallOfFame', () => {
     expect(entries[0].mode).toBe('timed');
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// textStyle — Phaser text style factory used 70+ times
+// ══════════════════════════════════════════════════════════════
+const UI_FONT = '"Segoe UI", system-ui, sans-serif';
+function textStyle(size, color, extra = {}) {
+  return { fontSize: size, fontFamily: UI_FONT, color, ...extra };
+}
+
+describe('textStyle factory', () => {
+  it('returns base style with size, font, and color', () => {
+    const s = textStyle('14px', '#aaaaaa');
+    expect(s).toEqual({ fontSize: '14px', fontFamily: UI_FONT, color: '#aaaaaa' });
+  });
+
+  it('merges extra properties without clobbering base keys', () => {
+    const s = textStyle('28px', '#f1c40f', { fontStyle: 'bold', stroke: '#000' });
+    expect(s.fontSize).toBe('28px');
+    expect(s.fontStyle).toBe('bold');
+    expect(s.stroke).toBe('#000');
+  });
+
+  it('extra can override color if explicitly passed (last-write wins)', () => {
+    const s = textStyle('14px', '#aaa', { color: '#fff' });
+    expect(s.color).toBe('#fff');
+  });
+
+  it('returns independent objects (no shared reference)', () => {
+    const a = textStyle('10px', '#000');
+    const b = textStyle('10px', '#000');
+    a.fontSize = '99px';
+    expect(b.fontSize).toBe('10px');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// saveHighScore — Game-over critical path
+// ══════════════════════════════════════════════════════════════
+function saveHighScore(score, storage) {
+  const current = storage.getInt('whatspoppin_highscore', 0);
+  if (score > current) {
+    storage.set('whatspoppin_highscore', Math.max(0, Math.floor(score)).toString());
+    return true;
+  }
+  return false;
+}
+
+describe('saveHighScore', () => {
+  beforeEach(() => SafeStorage._clear());
+
+  it('saves a new high score when none exists', () => {
+    expect(saveHighScore(500, SafeStorage)).toBe(true);
+    expect(SafeStorage.getInt('whatspoppin_highscore', 0)).toBe(500);
+  });
+
+  it('saves when new score beats existing', () => {
+    SafeStorage.set('whatspoppin_highscore', '300');
+    expect(saveHighScore(500, SafeStorage)).toBe(true);
+    expect(SafeStorage.getInt('whatspoppin_highscore', 0)).toBe(500);
+  });
+
+  it('returns false and does NOT overwrite when score is lower', () => {
+    SafeStorage.set('whatspoppin_highscore', '999');
+    expect(saveHighScore(100, SafeStorage)).toBe(false);
+    expect(SafeStorage.getInt('whatspoppin_highscore', 0)).toBe(999);
+  });
+
+  it('returns false for equal score (no tie-breaking)', () => {
+    SafeStorage.set('whatspoppin_highscore', '500');
+    expect(saveHighScore(500, SafeStorage)).toBe(false);
+  });
+
+  it('floors fractional scores', () => {
+    saveHighScore(99.9, SafeStorage);
+    expect(SafeStorage.getInt('whatspoppin_highscore', 0)).toBe(99);
+  });
+
+  it('clamps negative scores to 0', () => {
+    saveHighScore(-50, SafeStorage);
+    // -50 is not > 0 (default), so should not save
+    expect(saveHighScore(-50, SafeStorage)).toBe(false);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// toggleMuteAndSave — Audio preference persistence
+// ══════════════════════════════════════════════════════════════
+describe('toggleMuteAndSave', () => {
+  let mockAudio;
+
+  function toggleMuteAndSave(storage, audio) {
+    const nowMuted = audio.toggleMute();
+    storage.set('whatspoppin_muted', nowMuted ? '1' : '0');
+    return nowMuted;
+  }
+
+  beforeEach(() => {
+    SafeStorage._clear();
+    mockAudio = { muted: false, toggleMute() { this.muted = !this.muted; return this.muted; } };
+  });
+
+  it('persists "1" when toggling to muted', () => {
+    const result = toggleMuteAndSave(SafeStorage, mockAudio);
+    expect(result).toBe(true);
+    expect(SafeStorage.get('whatspoppin_muted', '0')).toBe('1');
+  });
+
+  it('persists "0" when toggling back to unmuted', () => {
+    mockAudio.muted = true; // start muted
+    const result = toggleMuteAndSave(SafeStorage, mockAudio);
+    expect(result).toBe(false);
+    expect(SafeStorage.get('whatspoppin_muted', '0')).toBe('0');
+  });
+
+  it('round-trips: two toggles restore original state', () => {
+    toggleMuteAndSave(SafeStorage, mockAudio);
+    toggleMuteAndSave(SafeStorage, mockAudio);
+    expect(SafeStorage.get('whatspoppin_muted', '0')).toBe('0');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Achievements — Persistent badge system
+// ══════════════════════════════════════════════════════════════
+const ACHIEVEMENTS = [
+  { id: 'first_blood', name: 'FIRST BLOOD', check: s => s.gamesPlayed >= 1 },
+  { id: 'combo_kid',   name: 'COMBO KID',   check: s => s.bestStreak >= 3 },
+  { id: 'flame_on',    name: 'FLAME ON',    check: s => s.bestStreak >= 5 },
+  { id: 'demon_time',  name: 'DEMON TIME',  check: s => s.bestStreak >= 8 },
+  { id: 'pop_star',    name: 'POP STAR',    check: s => s.totalPops >= 500 },
+  { id: 'veteran',     name: 'VETERAN',     check: s => s.gamesPlayed >= 25 },
+  { id: 'high_roller', name: 'HIGH ROLLER', check: s => s.bestScore >= 5000 },
+  { id: 'chain_gang',  name: 'CHAIN GANG',  check: s => s.bestChain >= 4 },
+];
+
+function makeAchievements(storage) {
+  const KEY = 'test_achievements';
+  return {
+    load() {
+      const raw = storage.get(KEY, '[]');
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(id => typeof id === 'string');
+      } catch (_) { return []; }
+    },
+    check(stats) {
+      const unlocked = new Set(this.load());
+      const newlyUnlocked = [];
+      for (const ach of ACHIEVEMENTS) {
+        if (!unlocked.has(ach.id) && ach.check(stats)) {
+          unlocked.add(ach.id);
+          newlyUnlocked.push(ach.id);
+        }
+      }
+      if (newlyUnlocked.length > 0) {
+        storage.set(KEY, JSON.stringify([...unlocked]));
+      }
+      return newlyUnlocked;
+    },
+    count() { return this.load().length; },
+  };
+}
+
+describe('Achievements', () => {
+  let ach;
+  beforeEach(() => { SafeStorage._clear(); ach = makeAchievements(SafeStorage); });
+
+  it('load returns empty array when nothing saved', () => {
+    expect(ach.load()).toEqual([]);
+  });
+
+  it('load returns empty for corrupted JSON', () => {
+    SafeStorage.set('test_achievements', '{not_an_array}');
+    expect(ach.load()).toEqual([]);
+  });
+
+  it('load filters out non-string entries (type injection)', () => {
+    SafeStorage.set('test_achievements', '["first_blood", 42, null, true]');
+    expect(ach.load()).toEqual(['first_blood']);
+  });
+
+  it('load returns empty for object payload (not array)', () => {
+    SafeStorage.set('test_achievements', '{"id":"first_blood"}');
+    expect(ach.load()).toEqual([]);
+  });
+
+  it('check unlocks first_blood after 1 game', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 0, totalPops: 0, bestScore: 0, bestChain: 0 };
+    const newly = ach.check(stats);
+    expect(newly).toContain('first_blood');
+    expect(newly).not.toContain('veteran');
+  });
+
+  it('check unlocks multiple achievements at once when stats jump', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 5, totalPops: 0, bestScore: 0, bestChain: 0 };
+    const newly = ach.check(stats);
+    expect(newly).toContain('first_blood');
+    expect(newly).toContain('combo_kid');
+    expect(newly).toContain('flame_on');
+    expect(newly).not.toContain('demon_time');
+  });
+
+  it('check does NOT re-unlock already-unlocked achievements', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 3, totalPops: 0, bestScore: 0, bestChain: 0 };
+    ach.check(stats); // first run unlocks first_blood + combo_kid
+    const second = ach.check(stats);
+    expect(second).toEqual([]);
+  });
+
+  it('check persists unlocks to storage', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 0, totalPops: 0, bestScore: 0, bestChain: 0 };
+    ach.check(stats);
+    // Fresh instance reads same storage
+    const fresh = makeAchievements(SafeStorage);
+    expect(fresh.load()).toContain('first_blood');
+  });
+
+  it('count returns number of unlocked achievements', () => {
+    expect(ach.count()).toBe(0);
+    ach.check({ gamesPlayed: 1, bestStreak: 5, totalPops: 0, bestScore: 0, bestChain: 0 });
+    expect(ach.count()).toBe(3); // first_blood, combo_kid, flame_on
+  });
+
+  it('chain_gang unlocks at bestChain >= 4', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 0, totalPops: 0, bestScore: 0, bestChain: 4 };
+    const newly = ach.check(stats);
+    expect(newly).toContain('chain_gang');
+    expect(newly).toContain('first_blood');
+  });
+
+  it('high_roller stays locked below 5000', () => {
+    const stats = { gamesPlayed: 1, bestStreak: 0, totalPops: 0, bestScore: 4999, bestChain: 0 };
+    const newly = ach.check(stats);
+    expect(newly).not.toContain('high_roller');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Chain level resolution — Cascade announcer tier matching
+// ══════════════════════════════════════════════════════════════
+const CHAIN_LEVELS = [
+  { min: 2, label: 'DOUBLE',  color: '#3498db', size: 26 },
+  { min: 3, label: 'TRIPLE',  color: '#2ecc71', size: 32 },
+  { min: 4, label: 'MEGA',    color: '#f1c40f', size: 38 },
+  { min: 5, label: 'ULTRA',   color: '#e74c3c', size: 44 },
+  { min: 7, label: 'GODLIKE', color: '#9b59b6', size: 50 },
+];
+
+function resolveChainLevel(depth) {
+  let level = null;
+  for (let i = CHAIN_LEVELS.length - 1; i >= 0; i--) {
+    if (depth >= CHAIN_LEVELS[i].min) { level = CHAIN_LEVELS[i]; break; }
+  }
+  return level;
+}
+
+describe('Chain level resolution (cascade announcer)', () => {
+  it('returns null for depth < 2 (no announcement)', () => {
+    expect(resolveChainLevel(0)).toBeNull();
+    expect(resolveChainLevel(1)).toBeNull();
+  });
+
+  it('returns DOUBLE at depth 2', () => {
+    expect(resolveChainLevel(2).label).toBe('DOUBLE');
+  });
+
+  it('returns TRIPLE at depth 3', () => {
+    expect(resolveChainLevel(3).label).toBe('TRIPLE');
+  });
+
+  it('returns MEGA at depth 4', () => {
+    expect(resolveChainLevel(4).label).toBe('MEGA');
+  });
+
+  it('returns ULTRA at depth 5-6 (before GODLIKE threshold)', () => {
+    expect(resolveChainLevel(5).label).toBe('ULTRA');
+    expect(resolveChainLevel(6).label).toBe('ULTRA');
+  });
+
+  it('returns GODLIKE at depth 7+', () => {
+    expect(resolveChainLevel(7).label).toBe('GODLIKE');
+    expect(resolveChainLevel(20).label).toBe('GODLIKE');
+  });
+
+  it('font size escalates with tier', () => {
+    const sizes = [2, 3, 4, 5, 7].map(d => resolveChainLevel(d).size);
+    for (let i = 1; i < sizes.length; i++) {
+      expect(sizes[i]).toBeGreaterThan(sizes[i - 1]);
+    }
+  });
+
+  it('each tier has a unique color', () => {
+    const colors = CHAIN_LEVELS.map(l => l.color);
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+});

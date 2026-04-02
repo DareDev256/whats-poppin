@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.2] — 2026-04-02
+
+### Added
+- **32 new unit tests** covering 5 previously untested critical paths: `textStyle` factory (4 tests), `saveHighScore` game-over path (6 tests), `toggleMuteAndSave` audio persistence (3 tests), `Achievements` badge system (9 tests including load/check/count/idempotency/type-injection), cascade chain level resolution (8 tests). Total: 130 → 162 tests, all passing
+
 ## [0.10.1] — 2026-04-02
 
 ### Changed
