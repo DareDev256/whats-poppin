@@ -4,7 +4,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 
 ## Features
 
-- **Core gameplay** — Swap adjacent bubbles, match 3+ to pop, chain cascades
+- **Core gameplay** — Swap adjacent bubbles, match 3+ to pop, chain cascades. Cascade chains (gravity-induced matches) display a glitch-style "CHAIN ×N" banner with escalating colors (cyan → gold → magenta) and earn bonus points
 - **Power-ups** — Match 4 (Line Clear), Match 5+ (Bomb), L/T shape (Color Nuke)
 - **Streak system** — Chain matches for multipliers (×2–×10), unlock characters at 3x/5x/8x/12x. Live multiplier badge shows your current bonus mid-game with tier-colored ring, bounce-in animation, and pulsing glow at ×8+
 - **4 characters** — Kira, Blaze, Ronin, Empress — each with unique vibes
@@ -31,7 +31,7 @@ src/
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
   icons.js       — Icons class — SVG-style icon system (sound, soundOff, share, hint, trophy, etc.)
-  game.test.js   — 124 Vitest unit tests (power-ups, scoring, matching, gravity, milestones, badges, safeDiv/safeScore, swap-reversal invariant, hint render safety)
+  game.test.js   — 131 Vitest unit tests (power-ups, scoring, chain bonus, matching, gravity, milestones, badges, safeDiv/safeScore, swap-reversal invariant, hint render safety)
   core.test.js   — 32 Vitest unit tests (scanRuns, textStyle/TEXT_PRESETS, SafeStorage tamper detection)
 sw.js            — Service worker with CSP header injection + offline fallback
 index.html       — Entry point with CSP meta tag + SRI-verified CDN script

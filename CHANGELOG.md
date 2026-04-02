@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0] — 2026-04-02
+
+### Added
+- **Cascade Chain Counter** — Gravity-induced chain reactions now display a graffiti-style "CHAIN ×N" banner at screen center with glitch text effect (offset shadow duplicate), spring-scale entrance, and fade-out. Color escalates with depth: cyan (×2) → gold (×3) → magenta (×4+). Deep chains (×3+) trigger extra camera shake for impact
+- **Chain score bonus** — Each cascade level adds +25 points to the base score before multipliers. A ×3 chain during a ×5 streak earns an extra 250 points. Bonus indicator text appears below the chain banner
+- **Chain stats in game over** — "BEST CHAIN" column appears in the end-game stats row when the player achieved a ×2+ chain. Also included in the share card text
+- **7 new tests** — Chain bonus scoring: depth 1 (no bonus), depth 2/3 (additive), streak scaling, power-up stacking, size bonus stacking, deep chain with full multipliers
+
 ## [0.12.1] — 2026-04-01
 
 ### Added

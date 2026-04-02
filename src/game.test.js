@@ -76,12 +76,13 @@ function makeGrid(rows, cols, fill = true) {
 }
 
 // Scoring formula from processMatches in game.js
-function calculateScore(totalPopped, streak, powerUpsActivated = 0) {
+function calculateScore(totalPopped, streak, powerUpsActivated = 0, chainDepth = 1) {
   const baseScore = totalPopped * 10;
   const streakMultiplier = Math.min(streak, 10);
   const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
   const powerUpBonus = powerUpsActivated * 50;
-  return (baseScore + sizeBonus + powerUpBonus) * streakMultiplier;
+  const chainBonus = chainDepth >= 2 ? (chainDepth - 1) * 25 : 0;
+  return (baseScore + sizeBonus + powerUpBonus + chainBonus) * streakMultiplier;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -842,6 +843,45 @@ describe('Score calculation — boundaries', () => {
 
   it('streak 1 gives 1x, not 0x', () => {
     expect(calculateScore(3, 1)).toBeGreaterThan(0);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// CASCADE CHAIN BONUS
+// ══════════════════════════════════════════════════════════════
+describe('Chain bonus scoring', () => {
+  it('no chain bonus at depth 1 (initial match)', () => {
+    expect(calculateScore(3, 1, 0, 1)).toBe(30);
+  });
+
+  it('adds 25 chain bonus at depth 2 (first cascade)', () => {
+    // (3*10 + 0 + 0 + 25) * 1 = 55
+    expect(calculateScore(3, 1, 0, 2)).toBe(55);
+  });
+
+  it('adds 50 chain bonus at depth 3 (double cascade)', () => {
+    // (3*10 + 0 + 0 + 50) * 1 = 80
+    expect(calculateScore(3, 1, 0, 3)).toBe(80);
+  });
+
+  it('chain bonus scales with streak multiplier', () => {
+    // (3*10 + 0 + 0 + 25) * 5 = 275
+    expect(calculateScore(3, 5, 0, 2)).toBe(275);
+  });
+
+  it('chain bonus stacks with power-up bonus', () => {
+    // (3*10 + 0 + 50 + 25) * 1 = 105
+    expect(calculateScore(3, 1, 1, 2)).toBe(105);
+  });
+
+  it('chain bonus stacks with size bonus', () => {
+    // (6*10 + 2*15 + 0 + 25) * 1 = 115
+    expect(calculateScore(6, 1, 0, 2)).toBe(115);
+  });
+
+  it('deep chain (×5) with full multipliers', () => {
+    // (5*10 + 15 + 50 + 100) * 5 = (50+15+50+100)*5 = 1075
+    expect(calculateScore(5, 5, 1, 5)).toBe(1075);
   });
 });
 

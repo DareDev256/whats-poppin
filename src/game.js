@@ -554,6 +554,7 @@ class GameOverScene extends Phaser.Scene {
     const isNewHigh = !!safe.isNewHigh;
     const mode = safe.mode || 'timed';
     const feverCount = Number.isFinite(safe.feverCount) ? safe.feverCount : 0;
+    const bestChain = Number.isFinite(safe.bestChain) ? safe.bestChain : 0;
 
     // Background
     const bg = this.add.graphics();
@@ -613,17 +614,19 @@ class GameOverScene extends Phaser.Scene {
       });
     }
 
-    // Stats
+    // Stats — dynamic column count based on active features
     const statsY = cardY + 140;
-    const statCols = feverCount > 0 ? 4 : 3;
-    const statW = 1 / (statCols + 1);
-    this.add.text(width * statW, statsY, `MOVES\n${moves}`, textStyle('stat')).setOrigin(0.5);
-    this.add.text(width * statW * 2, statsY, `BEST STREAK\n${bestStreak}x`, textStyle('stat')).setOrigin(0.5);
-    const avgPerMove = Math.round(safeDiv(score, moves));
-    this.add.text(width * statW * 3, statsY, `AVG/MOVE\n${avgPerMove}`, textStyle('stat')).setOrigin(0.5);
-    if (feverCount > 0) {
-      this.add.text(width * statW * 4, statsY, `FEVERS\n${feverCount}🔥`, textStyle('stat')).setOrigin(0.5);
-    }
+    const statItems = [
+      { label: 'MOVES', value: `${moves}` },
+      { label: 'BEST STREAK', value: `${bestStreak}x` },
+      { label: 'AVG/MOVE', value: `${Math.round(safeDiv(score, moves))}` },
+    ];
+    if (bestChain >= 2) statItems.push({ label: 'BEST CHAIN', value: `×${bestChain}` });
+    if (feverCount > 0) statItems.push({ label: 'FEVERS', value: `${feverCount}🔥` });
+    const statW = 1 / (statItems.length + 1);
+    statItems.forEach((s, i) => {
+      this.add.text(width * statW * (i + 1), statsY, `${s.label}\n${s.value}`, textStyle('stat')).setOrigin(0.5);
+    });
 
     // ---- PERFORMANCE GRADE ----
     const gradeInfo = getGrade(score, bestStreak);
@@ -703,7 +706,7 @@ class GameOverScene extends Phaser.Scene {
     createButton(this, { x: width / 2, y: btnY1 + 50, width: btnW, height: 42,
       text: 'SHARE SCORE', color: '#3498db',
       iconFn: (s, bx, by) => Icons.share(s, bx, by, 14, 0x3498db),
-      callback: () => this.shareScore(score, bestStreak, moves, mode, feverCount),
+      callback: () => this.shareScore(score, bestStreak, moves, mode, feverCount, bestChain),
     });
     createButton(this, { x: width / 2, y: btnY1 + 100, width: btnW, height: 42,
       text: 'MENU', color: '#aaaaaa',
@@ -735,10 +738,11 @@ class GameOverScene extends Phaser.Scene {
     }
   }
 
-  shareScore(score, bestStreak, moves, mode, feverCount) {
+  shareScore(score, bestStreak, moves, mode, feverCount, bestChain) {
     const safeScore = Number.isFinite(score) ? score : 0;
     const safeStreak = Number.isFinite(bestStreak) ? bestStreak : 0;
     const safeMoves = Number.isFinite(moves) ? moves : 0;
+    const safeChain = Number.isFinite(bestChain) ? bestChain : 0;
     const tierLevel = getStreakLevel(safeStreak);
     const tierLabel = tierLevel ? ` — ${tierLevel.label}` : '';
     const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
@@ -746,6 +750,7 @@ class GameOverScene extends Phaser.Scene {
 
     const gradeInfo = getGrade(safeScore, safeStreak);
     const feverLine = feverCount > 0 ? `Fevers: ${feverCount} 🔥\n` : '';
+    const chainLine = safeChain >= 2 ? `Best Chain: ×${safeChain}\n` : '';
     const card = [
       `WHAT'S POPPIN`,
       `━━━━━━━━━━━━━━━━━`,
@@ -753,7 +758,7 @@ class GameOverScene extends Phaser.Scene {
       `Score: ${safeScore.toLocaleString()}`,
       `Best Streak: ${safeStreak}x${tierLabel}`,
       `Moves: ${safeMoves}  |  Avg: ${avgPerMove}/move`,
-      feverLine + `Mode: ${modeLabel}`,
+      chainLine + feverLine + `Mode: ${modeLabel}`,
       `━━━━━━━━━━━━━━━━━`,
       `#WhatsPoppin`,
     ].join('\n');
@@ -1309,6 +1314,10 @@ class GameScene extends Phaser.Scene {
     this.highScoreNotified = false;   // fire once per game
     this.bestStreakNotified = false;
     this._multGlowTween = null;      // multiplier badge pulsing tween ref
+
+    // Cascade chain tracking — counts gravity-induced chain reactions per move
+    this.chainDepth = 0;       // current cascade depth (1 = initial match, 2+ = chain)
+    this.bestChain = 0;        // best chain this game (for stats)
   }
 
   create() {
@@ -1973,6 +1982,7 @@ class GameScene extends Phaser.Scene {
         isNewHigh,
         mode: this.gameMode || 'timed',
         feverCount: this.feverCount || 0,
+        bestChain: this.bestChain || 0,
       });
     });
   }
@@ -2330,9 +2340,11 @@ class GameScene extends Phaser.Scene {
    * @see safeScore — Guards against NaN/Infinity in score accumulation
    * @see Achievements.check — Tests all 8 milestone thresholds
    */
-  processMatches(matchGroups) {
+  processMatches(matchGroups, depth = 1) {
     this.streak++;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+    this.chainDepth = depth;
+    if (depth > this.bestChain) this.bestChain = depth;
 
     let totalPopped = 0;
     let popIdx = 0;
@@ -2437,8 +2449,9 @@ class GameScene extends Phaser.Scene {
     const streakMultiplier = Math.min(this.streak, 10);
     const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
     const powerUpBonus = powerUpsToActivate.length * 50;
+    const chainBonus = depth >= 2 ? (depth - 1) * 25 : 0;
     const feverMultiplier = this.feverActive ? 2 : 1;
-    const points = safeScore((baseScore + sizeBonus + powerUpBonus) * streakMultiplier * feverMultiplier);
+    const points = safeScore((baseScore + sizeBonus + powerUpBonus + chainBonus) * streakMultiplier * feverMultiplier);
     this.score = safeScore(this.score + points);
     this.totalPopped += totalPopped;
     this.scoreText.setText(`SCORE: ${this.score.toLocaleString()}`);
@@ -2449,6 +2462,9 @@ class GameScene extends Phaser.Scene {
       const label = this.feverActive ? `+${points} 🔥` : `+${points}`;
       this.showScorePopup(first.x, first.y, label, this.streak);
     }
+
+    // ---- CASCADE CHAIN BANNER ----
+    if (depth >= 2) this.showChainBanner(depth);
 
     // ---- LIVE MILESTONES ----
     this.checkMilestones();
@@ -2483,7 +2499,7 @@ class GameScene extends Phaser.Scene {
         this.time.delayedCall(400, () => {
           const newMatches = this.findAllMatches();
           if (newMatches.length > 0) {
-            this.processMatches(newMatches);
+            this.processMatches(newMatches, depth + 1);
           } else {
             if (!this.hasPossibleMoves()) this.reshuffleGrid();
             this.isProcessing = false;
@@ -2657,6 +2673,71 @@ class GameScene extends Phaser.Scene {
       targets: popup, y: y - 60, alpha: 0, scale: 1.3,
       duration: 800, ease: 'Quad.easeOut',
       onComplete: () => popup.destroy(),
+    });
+  }
+
+  /**
+   * Cascade Chain Banner — graffiti-style "CHAIN ×N" with glitch offset.
+   * Fires when gravity-induced matches chain (depth ≥ 2).
+   * Visual intensity scales with chain depth:
+   *   ×2 = cyan, ×3 = gold, ×4+ = magenta with stronger shake.
+   */
+  showChainBanner(depth) {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2 - 40;
+    const label = `CHAIN ×${depth}`;
+
+    // Escalating color tiers — cyan → gold → magenta
+    const tierColors = ['#00e5ff', '#ffd700', '#ff00ff'];
+    const color = tierColors[Math.min(depth - 2, tierColors.length - 1)];
+    const fontSize = Math.min(28 + depth * 4, 48);
+
+    // Glitch shadow — offset duplicate behind the main text
+    const glitch = this.add.text(cx + 3, cy + 2, label,
+      textStyle('popup', { fontSize: `${fontSize}px`, color, fontStyle: 'bold italic' })
+    ).setOrigin(0.5).setAlpha(0.4).setDepth(29);
+
+    // Main chain text
+    const main = this.add.text(cx, cy, label,
+      textStyle('popup', { fontSize: `${fontSize}px`, color: '#ffffff', fontStyle: 'bold italic' })
+    ).setOrigin(0.5).setDepth(30);
+
+    // Chain bonus indicator below
+    const bonus = this.add.text(cx, cy + fontSize * 0.7, `+${(depth - 1) * 25} CHAIN BONUS`,
+      textStyle('badge', { fontSize: '13px', color })
+    ).setOrigin(0.5).setAlpha(0).setDepth(30);
+
+    // Scale-in with spring ease
+    main.setScale(0.3);
+    glitch.setScale(0.3);
+    this.tweens.add({
+      targets: [main, glitch], scale: 1, duration: 300, ease: 'Back.easeOut',
+    });
+
+    // Bonus text fade in
+    this.tweens.add({
+      targets: bonus, alpha: 1, y: cy + fontSize * 0.6,
+      duration: 250, delay: 150, ease: 'Quad.easeOut',
+    });
+
+    // Glitch jitter — rapid offset oscillation
+    this.tweens.add({
+      targets: glitch, x: cx + Phaser.Math.Between(-4, 4),
+      duration: 60, yoyo: true, repeat: 3,
+    });
+
+    // Extra camera punch for deep chains (×3+)
+    if (depth >= 3) {
+      this.cameras.main.shake(200, 0.006 + depth * 0.003);
+    }
+
+    // Fade out together
+    this.tweens.add({
+      targets: [main, glitch, bonus],
+      alpha: 0, y: cy - 30, scale: 1.15,
+      duration: 600, delay: 700, ease: 'Quad.easeIn',
+      onComplete: () => { main.destroy(); glitch.destroy(); bonus.destroy(); },
     });
   }
 
