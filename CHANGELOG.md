@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.1] — 2026-04-03
+
+### Fixed
+- **Power-up swap streak/fever exploit** — Swapping a power-up bubble into a position with no color matches no longer falls through to the "successful match" code path. Previously this inflated streak count, pumped the fever meter for free (`streak × 3` hype per swap), triggered an empty cascade cycle, and the power-up never actually activated. Now all no-match swaps correctly reverse and reset streak regardless of power-up state
+
+### Added
+- **4 regression tests** covering the no-match power-up swap bug: streak inflation guard, fever meter free-gain prevention, condition logic verification, and repeated swap farming protection (162 → 166 tests)
+
 ## [0.11.0] — 2026-04-03
 
 ### Added

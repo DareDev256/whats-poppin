@@ -41,7 +41,7 @@ npx serve . -l 3333
 npm test
 ```
 
-162 unit tests (Vitest), all passing. Coverage:
+166 unit tests (Vitest), all passing. Coverage:
 
 | Module | What's tested |
 |--------|--------------|
@@ -50,7 +50,7 @@ npm test
 | **HallOfFame** | Ranked insertion, score sorting, 10-entry cap, zero-score rejection, type injection sanitization, overflow clamping, mode whitelist |
 | **GameScene** | Cascade simulation, pause safety (scene clock freezing), reshuffle verification, endGame cleanup, full turn cycle, game-over stat derivation |
 | **PowerUpSystem** | Analysis → effect integration, area-of-effect calculations, shape detection |
-| **Grid Logic** | Match-finding (cross-shaped, boundary, null gaps), gravity/drop, adjacency validation, swap edge cases, deadlock detection |
+| **Grid Logic** | Match-finding (cross-shaped, boundary, null gaps), gravity/drop, adjacency validation, swap edge cases, deadlock detection, no-match power-up swap regression |
 | **Scoring** | Formula boundaries, zero streak, size-bonus thresholds, streak tier resolution, adlib selection |
 | **ScanScene** | Skill bracket resolution, efficiency calculation, progressive challenge generation |
 | **textStyle** | Factory output, extra merge/override, object independence |

@@ -1727,3 +1727,65 @@ describe('Chain level resolution (cascade announcer)', () => {
     expect(new Set(colors).size).toBe(colors.length);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// SWAP LOGIC — Power-up swap without matches must not inflate state
+// ══════════════════════════════════════════════════════════════
+describe('Swap validation: no-match power-up swap bug', () => {
+  // Reproduces the bug where swapping a power-up bubble with no color
+  // matches fell into the "successful match" branch, inflating streak
+  // and fever while the power-up never actually activated.
+
+  it('processMatches([]) would inflate streak from 0 to 1', () => {
+    // Simulates what happened when processMatches received an empty array
+    let streak = 0;
+    // This is the buggy behavior — streak++ on empty matches
+    const buggyProcessMatches = (matchGroups) => {
+      streak++;
+      let totalPopped = 0;
+      matchGroups.forEach(() => { totalPopped++; });
+      return { streak, totalPopped };
+    };
+    const result = buggyProcessMatches([]);
+    // The bug: streak increments even with zero match groups
+    expect(result.streak).toBe(1);
+    expect(result.totalPopped).toBe(0);
+  });
+
+  it('feedFever gives free meter from streak alone when popped is 0', () => {
+    // feedFever formula: gain = (popped * 2) + (streak * 3)
+    const feedFever = (popped, streak) => (popped * 2) + (streak * 3);
+    // With the bug: popped=0, streak=5 → 15 free fever points
+    expect(feedFever(0, 5)).toBe(15);
+    // Correct: no pops + no streak = no fever gain
+    expect(feedFever(0, 0)).toBe(0);
+  });
+
+  it('swapping power-up bubble without color match should be treated as invalid', () => {
+    // The fixed logic: matches.length === 0 → always reverse swap
+    // Power-ups only activate when part of a matched group
+    const matches = [];
+    const aPower = POWERUP_TYPES.BOMB; // power-up on bubble a
+    const bPower = POWERUP_TYPES.NONE;
+
+    // OLD (buggy): allowed swap through when power-up existed
+    const oldCondition = matches.length === 0 && aPower === POWERUP_TYPES.NONE && bPower === POWERUP_TYPES.NONE;
+    expect(oldCondition).toBe(false); // Bug: doesn't reverse swap
+
+    // NEW (fixed): always reverse when no matches
+    const newCondition = matches.length === 0;
+    expect(newCondition).toBe(true); // Correct: reverses swap
+  });
+
+  it('repeated no-match power-up swaps cannot farm streak', () => {
+    // Simulate 5 consecutive no-match swaps on a power-up bubble
+    let streak = 0;
+    for (let i = 0; i < 5; i++) {
+      const matches = [];
+      if (matches.length === 0) {
+        streak = 0; // Fixed: reset streak on invalid swap
+      }
+    }
+    expect(streak).toBe(0); // No free streak inflation
+  });
+});

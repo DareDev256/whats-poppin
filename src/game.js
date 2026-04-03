@@ -2503,11 +2503,12 @@ class GameScene extends Phaser.Scene {
       onComplete: () => {
         const matches = this.findAllMatches();
 
-        // Check if swapped bubbles have power-ups that should activate
-        const aPower = a.getData('powerUp');
-        const bPower = b.getData('powerUp');
-
-        if (matches.length === 0 && aPower === POWERUP_TYPES.NONE && bPower === POWERUP_TYPES.NONE) {
+        if (matches.length === 0) {
+          // No color matches — reverse the swap regardless of power-ups.
+          // Power-ups only activate when part of a matched group, not on
+          // standalone swaps. Without this guard the else branch would call
+          // processMatches([]), inflating streak/fever for free and starting
+          // an empty cascade cycle while the power-up never actually fires.
           this.grid[r1][c1] = a; this.grid[r2][c2] = b;
           a.setData('row', r1); a.setData('col', c1);
           b.setData('row', r2); b.setData('col', c2);
