@@ -44,7 +44,7 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **SRI** — CDN scripts verified with SHA-384 subresource integrity hashes
 - **CSP** — Content-Security-Policy with no `unsafe-inline` on scripts, `object-src 'none'`, `upgrade-insecure-requests`, `base-uri`/`form-action`/`frame-ancestors` lockdown
 - **X-Frame-Options** — `DENY` header on both the HTML meta tag and all SW-served responses for legacy browser clickjacking protection
-- **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets security headers injected (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `HSTS`, `COOP`). Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity
+- **SW header hardening** — Every response served through the SW (cached, network, and offline fallback) gets 8 security headers injected: `CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy`, `X-DNS-Prefetch-Control`, `Permissions-Policy`. Cross-origin (opaque) CDN responses are exempt to preserve SRI integrity. `clients.claim()` on activate ensures immediate coverage on all open tabs
 - **Cache poisoning guard** — SW only caches responses with safe MIME types (HTML, CSS, JS, JSON, images). Unexpected content-types are served but never persisted
 - **HSTS** — `Strict-Transport-Security` with 2-year max-age, includeSubDomains, and preload directive
 - **COOP** — `Cross-Origin-Opener-Policy: same-origin` mitigates Spectre-class cross-origin attacks
