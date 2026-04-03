@@ -623,7 +623,7 @@ class GameOverScene extends Phaser.Scene {
     ];
     if (bestChain >= 2) statItems.push({ label: 'BEST CHAIN', value: `×${bestChain}` });
     if (feverCount > 0) statItems.push({ label: 'FEVERS', value: `${feverCount}🔥` });
-    const statW = 1 / (statItems.length + 1);
+    const statW = safeDiv(1, statItems.length + 1, 0.25);
     statItems.forEach((s, i) => {
       this.add.text(width * statW * (i + 1), statsY, `${s.label}\n${s.value}`, textStyle('stat')).setOrigin(0.5);
     });
@@ -739,25 +739,26 @@ class GameOverScene extends Phaser.Scene {
   }
 
   shareScore(score, bestStreak, moves, mode, feverCount, bestChain) {
-    const safeScore = Number.isFinite(score) ? score : 0;
-    const safeStreak = Number.isFinite(bestStreak) ? bestStreak : 0;
-    const safeMoves = Number.isFinite(moves) ? moves : 0;
-    const safeChain = Number.isFinite(bestChain) ? bestChain : 0;
-    const tierLevel = getStreakLevel(safeStreak);
+    // Use distinct names to avoid shadowing the module-level safeScore() function
+    const cleanScore = Number.isFinite(score) ? score : 0;
+    const cleanStreak = Number.isFinite(bestStreak) ? bestStreak : 0;
+    const cleanMoves = Number.isFinite(moves) ? moves : 0;
+    const cleanChain = Number.isFinite(bestChain) ? bestChain : 0;
+    const tierLevel = getStreakLevel(cleanStreak);
     const tierLabel = tierLevel ? ` — ${tierLevel.label}` : '';
     const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
-    const avgPerMove = Math.round(safeDiv(safeScore, safeMoves));
+    const avgPerMove = Math.round(safeDiv(cleanScore, cleanMoves));
 
-    const gradeInfo = getGrade(safeScore, safeStreak);
+    const gradeInfo = getGrade(cleanScore, cleanStreak);
     const feverLine = feverCount > 0 ? `Fevers: ${feverCount} 🔥\n` : '';
-    const chainLine = safeChain >= 2 ? `Best Chain: ×${safeChain}\n` : '';
+    const chainLine = cleanChain >= 2 ? `Best Chain: ×${cleanChain}\n` : '';
     const card = [
       `WHAT'S POPPIN`,
       `━━━━━━━━━━━━━━━━━`,
       `Grade: ${gradeInfo.grade} — ${gradeInfo.label}`,
-      `Score: ${safeScore.toLocaleString()}`,
-      `Best Streak: ${safeStreak}x${tierLabel}`,
-      `Moves: ${safeMoves}  |  Avg: ${avgPerMove}/move`,
+      `Score: ${cleanScore.toLocaleString()}`,
+      `Best Streak: ${cleanStreak}x${tierLabel}`,
+      `Moves: ${cleanMoves}  |  Avg: ${avgPerMove}/move`,
       chainLine + feverLine + `Mode: ${modeLabel}`,
       `━━━━━━━━━━━━━━━━━`,
       `#WhatsPoppin`,
@@ -2446,7 +2447,7 @@ class GameScene extends Phaser.Scene {
 
     // Score — safeScore() prevents NaN/Infinity from corrupting the running total
     const baseScore = totalPopped * 10;
-    const streakMultiplier = Math.min(this.streak, 10);
+    const streakMultiplier = Math.max(1, Math.min(Number.isFinite(this.streak) ? this.streak : 1, 10));
     const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
     const powerUpBonus = powerUpsToActivate.length * 50;
     const chainBonus = depth >= 2 ? (depth - 1) * 25 : 0;

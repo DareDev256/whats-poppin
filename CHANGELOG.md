@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1] — 2026-04-03
+
+### Fixed
+- **`shareScore` variable shadowing** — Renamed local `safeScore` variable to `cleanScore` to avoid shadowing the module-level `safeScore()` function, preventing silent breakage if the function is called later in the same scope
+- **Unguarded stat column division** — Replaced raw `1 / (statItems.length + 1)` with `safeDiv()` for consistent defensive arithmetic in the game-over stats layout
+- **Streak multiplier floor** — Added `Math.max(1, ...)` and `Number.isFinite()` guard to `streakMultiplier` so corrupted/NaN streak values can never zero-multiply earned points away silently
+
 ## [0.13.0] — 2026-04-02
 
 ### Added
