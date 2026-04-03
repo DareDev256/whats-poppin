@@ -26,7 +26,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), processMatches() pipeline (see below), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), processMatches() pipeline (see below), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), input sanitization layer (sanitizeMode, sanitizeGrade, sanitizeStorageKey), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
@@ -50,8 +50,8 @@ All source files attach their exports to `window` — no bundler, no module syst
 - **COOP** — `Cross-Origin-Opener-Policy: same-origin` mitigates Spectre-class cross-origin attacks
 - **Permissions-Policy** — Disables camera, microphone, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents information leakage to CDN/third parties
-- **SafeStorage** — Sealed object with 11-key allowlist, 64-char max-length guard, try-catch wrappers, and FNV-1a keyed checksums. Key allowlist is frozen — cannot be extended at runtime. Missing checksums are treated as tampered (no deletion bypass). Values exceeding max length are rejected on both read and write. `getString()` validates enum values against explicit allowlists (grades, modes). Grade writes validate mode (`timed`/`zen`) and grade (`S`–`F`). All numeric writes are `Math.floor`'d and range-clamped (scores ≤999M, streaks ≤9999). Salt integrity is self-guarded — tampering invalidates all stored data
-- **Game mode validation** — `gameMode` is validated against `['timed', 'zen']` before use in storage key construction, preventing key injection via crafted scene data
+- **SafeStorage** — Try-catch wrappers and FNV-1a keyed checksums with per-install salt. Key validation enforces alphanumeric+underscore pattern and 64-char max on all `get()`/`set()` calls. Value writes capped at 1KB to prevent storage abuse. Missing checksums are treated as tampered (no deletion bypass). All numeric reads via `getInt()` reject scientific notation/hex/floats — only plain decimal digits accepted. Salt integrity is self-guarded — tampering invalidates all stored data
+- **Input sanitization layer** — Dedicated `sanitizeMode()`, `sanitizeGrade()`, and `sanitizeStorageKey()` functions validate all user-influenced data at trust boundaries. `sanitizeMode()` whitelists `timed`/`zen` with case-insensitive matching; `sanitizeGrade()` whitelists `S`–`F`; `sanitizeStorageKey()` enforces alphanumeric+underscore with 64-char max. Applied at every scene transition and storage read/display point
 - **Score integrity** — High scores validated against checksums to detect tampering; NaN/undefined guards on all score paths prevent corrupted writes. Streak multiplier floored at 1 to prevent zero-multiplication from corrupted state. All arithmetic divisions routed through `safeDiv()` for consistent defence
 - **Scene data hardening** — GameOverScene validates all incoming data with `Number.isFinite` fallbacks, preventing crashes on undefined game state
 - **SW hardening** — Service worker validates response origins, rejects non-HTTP(S) schemes, calls `clients.claim()` on activate for immediate security header coverage on all open tabs, handles network failures gracefully
