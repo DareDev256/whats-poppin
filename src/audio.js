@@ -353,6 +353,45 @@ class AudioEngine {
   }
 
   // -------------------------------------------------------
+  // FEVER ACTIVATE — rising siren + impact
+  // -------------------------------------------------------
+  playFeverActivate() {
+    if (!this._isReady()) return;
+    const t = this.ctx.currentTime;
+
+    // Rising siren sweep
+    const siren = this.ctx.createOscillator();
+    const sirenGain = this.ctx.createGain();
+    siren.type = 'sawtooth';
+    siren.frequency.setValueAtTime(300, t);
+    siren.frequency.exponentialRampToValueAtTime(1200, t + 0.3);
+    siren.frequency.exponentialRampToValueAtTime(600, t + 0.5);
+    sirenGain.gain.setValueAtTime(0.1, t);
+    sirenGain.gain.linearRampToValueAtTime(0.15, t + 0.25);
+    sirenGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    siren.connect(sirenGain);
+    sirenGain.connect(this.compressor);
+    siren.start(t);
+    siren.stop(t + 0.55);
+
+    // Sub impact at peak
+    const sub = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(120, t + 0.25);
+    sub.frequency.exponentialRampToValueAtTime(40, t + 0.55);
+    subGain.gain.setValueAtTime(0.35, t + 0.25);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    sub.connect(subGain);
+    subGain.connect(this.compressor);
+    sub.start(t + 0.25);
+    sub.stop(t + 0.65);
+
+    // Noise burst for texture
+    this.playNoiseBurst(t + 0.25, 0.1, 0.2);
+  }
+
+  // -------------------------------------------------------
   // INVALID MOVE — dull thud
   // -------------------------------------------------------
   playInvalid() {

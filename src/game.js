@@ -114,7 +114,7 @@ function toggleMuteAndSave() {
 // =============================================================
 const CareerStats = {
   _key: 'whatspoppin_career',
-  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0, bestChain: 0 },
+  _defaults: { gamesPlayed: 0, totalScore: 0, totalPops: 0, bestStreak: 0, bestScore: 0, bestChain: 0, totalFevers: 0 },
   // Schema: every allowed field, its max sane value, and nothing else gets through
   _schema: {
     gamesPlayed: 100000,
@@ -123,6 +123,7 @@ const CareerStats = {
     bestStreak:  1000,
     bestScore:   1e8,
     bestChain:   1000,
+    totalFevers: 100000,
   },
   _storage: SafeStorage,
 
@@ -162,6 +163,7 @@ const CareerStats = {
     stats.bestStreak = Math.max(stats.bestStreak, gameData.bestStreak);
     stats.bestScore = Math.max(stats.bestScore, gameData.score);
     stats.bestChain = Math.max(stats.bestChain, gameData.bestChain || 0);
+    stats.totalFevers += gameData.fevers || 0;
     // Re-sanitize before persisting to enforce bounds after arithmetic
     const sanitized = this._sanitize(stats);
     this._storage.set(this._key, JSON.stringify(sanitized));
@@ -231,6 +233,7 @@ const ACHIEVEMENTS = [
   { id: 'veteran', name: 'VETERAN', desc: 'Play 25 games', icon: 'badge', color: 0xff6b35, check: s => s.gamesPlayed >= 25 },
   { id: 'high_roller', name: 'HIGH ROLLER', desc: 'Score 5,000+ in one game', icon: 'crown', color: 0xf1c40f, check: s => s.bestScore >= 5000 },
   { id: 'chain_gang', name: 'CHAIN GANG', desc: 'Trigger a 4x cascade chain', icon: 'fire', color: 0x00e5ff, check: s => s.bestChain >= 4 },
+  { id: 'fever_pitch', name: 'FEVER PITCH', desc: 'Activate Fever Mode', icon: 'fire', color: 0xff2222, check: s => s.totalFevers >= 1 },
 ];
 
 const Achievements = {
@@ -432,6 +435,7 @@ const TIPS = [
   'In Timed mode, speed matters more than perfection — keep moving',
   'Power-up bubbles activate when matched — save them for the right moment',
   'No valid moves? The board auto-shuffles — no penalty',
+  'Fill the Fever meter with matches — 2X score for 8 seconds when it peaks',
 ];
 
 // =============================================================
@@ -1227,6 +1231,8 @@ class StatsScene extends Phaser.Scene {
       { label: 'BEST STREAK', value: `${stats.bestStreak}x`, color: '#9b59b6' },
       { label: 'BEST CHAIN', value: stats.bestChain > 0 ? `${stats.bestChain}x` : '—', color: '#00e5ff' },
       { label: 'AVG SCORE', value: (stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0).toLocaleString(), color: '#ff6b35' },
+      { label: 'FEVERS', value: (stats.totalFevers || 0).toLocaleString(), color: '#ff2222' },
+      { label: 'AVG POPS', value: (stats.gamesPlayed > 0 ? Math.round(stats.totalPops / stats.gamesPlayed) : 0).toLocaleString(), color: '#2ecc71' },
     ];
 
     statCells.forEach((cell, i) => {
@@ -1591,6 +1597,12 @@ class GameScene extends Phaser.Scene {
     this.pauseContainer = null;
     this.cascadeDepth = 0;
     this.bestChain = 0;
+    // Fever Mode state
+    this.feverMeter = 0;        // 0–100
+    this.feverActive = false;
+    this.feverTimeLeft = 0;     // seconds remaining
+    this.feverDuration = 8;     // total fever seconds
+    this.feverCount = 0;        // fevers activated this game
   }
 
   create() {
@@ -1712,6 +1724,9 @@ class GameScene extends Phaser.Scene {
 
     // ---- STREAK PROGRESS BAR ----
     this.buildStreakProgressBar();
+
+    // ---- FEVER METER ----
+    this.buildFeverMeter();
 
     // ---- PAUSE BUTTON (top-left corner) ----
     const pauseBtnSize = 36;
@@ -1866,6 +1881,180 @@ class GameScene extends Phaser.Scene {
   }
 
   // -----------------------------------------------------------
+  // FEVER MODE — Build-up meter + 2x score multiplier burst
+  // -----------------------------------------------------------
+  buildFeverMeter() {
+    const { height } = this.scale;
+    const barX = 6;
+    const barY = GRID_OFFSET_Y;
+    const barW = 8;
+    const barH = height - GRID_OFFSET_Y - 75;
+
+    this._fBar = { x: barX, y: barY, w: barW, h: barH };
+
+    // Track background
+    const track = this.add.graphics();
+    track.fillStyle(0x1a1a2e, 0.6);
+    track.fillRoundedRect(barX, barY, barW, barH, 4);
+    track.lineStyle(1, 0x2a2a4a, 0.4);
+    track.strokeRoundedRect(barX, barY, barW, barH, 4);
+
+    // Fill (drawn dynamically, bottom-up)
+    this.feverBarFill = this.add.graphics();
+
+    // Glow overlay
+    this.feverBarGlow = this.add.graphics().setAlpha(0);
+
+    // Label
+    this.feverLabel = this.add.text(barX + barW / 2, barY - 8, 'F', {
+      fontSize: '8px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#555555',
+    }).setOrigin(0.5);
+
+    // Fever active border (full-screen glow, hidden by default)
+    this.feverBorderGfx = this.add.graphics().setAlpha(0).setDepth(45);
+
+    // Fever countdown text (hidden by default)
+    this.feverCountdown = this.add.text(20, GRID_OFFSET_Y - 18, '', {
+      fontSize: '11px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#ff4444',
+    }).setAlpha(0);
+
+    this.updateFeverMeter(false);
+  }
+
+  updateFeverMeter(animate = true) {
+    const { x, y, w, h } = this._fBar;
+    const pct = Math.min(this.feverMeter / 100, 1);
+    const fillH = pct * h;
+
+    // Color ramps from cool to hot
+    let fillColor = 0x3a3a5e;
+    if (this.feverActive) fillColor = 0xff2222;
+    else if (pct >= 0.8) fillColor = 0xff4444;
+    else if (pct >= 0.5) fillColor = 0xff8800;
+    else if (pct >= 0.25) fillColor = 0xf1c40f;
+
+    this.feverBarFill.clear();
+    if (fillH > 0) {
+      this.feverBarFill.fillStyle(fillColor, 0.9);
+      this.feverBarFill.fillRoundedRect(x, y + h - fillH, w, fillH, 3);
+    }
+
+    // Label color
+    this.feverLabel.setColor(this.feverActive ? '#ff2222' : pct >= 0.5 ? '#ff8800' : '#555555');
+
+    // Glow pulse when near full
+    if (animate && pct >= 0.85 && !this.feverActive) {
+      this.feverBarGlow.clear();
+      this.feverBarGlow.fillStyle(0xff4444, 0.4);
+      this.feverBarGlow.fillRoundedRect(x - 2, y + h - fillH - 2, w + 4, fillH + 4, 4);
+      this.feverBarGlow.setAlpha(1);
+      this.tweens.add({ targets: this.feverBarGlow, alpha: 0, duration: 500, ease: 'Quad.easeOut' });
+    }
+  }
+
+  /**
+   * Feed the fever meter after a match. Bigger matches = more fuel.
+   * @param {number} popped - Bubbles popped
+   * @param {number} streak - Current streak
+   */
+  feedFever(popped, streak) {
+    if (this.feverActive) return; // meter frozen during fever
+    const gain = (popped * 2) + (streak * 3);
+    this.feverMeter = Math.min(this.feverMeter + gain, 100);
+    this.updateFeverMeter(true);
+    if (this.feverMeter >= 100) this.activateFever();
+  }
+
+  activateFever() {
+    this.feverActive = true;
+    this.feverTimeLeft = this.feverDuration;
+    this.feverCount++;
+    const { width, height } = this.scale;
+
+    // Audio cue — distinct fever siren
+    window.audioEngine.playFeverActivate();
+
+    // "FEVER!" announcement
+    const feverText = this.add.text(width / 2, height * 0.35, 'FEVER!', {
+      fontSize: '52px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#ff2222', stroke: '#000000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(50).setScale(0);
+
+    this.tweens.add({
+      targets: feverText, scale: 1.3, duration: 400, ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: feverText, alpha: 0, scale: 2, duration: 600, ease: 'Quad.easeOut',
+          onComplete: () => feverText.destroy(),
+        });
+      },
+    });
+
+    const sub = this.add.text(width / 2, height * 0.42, '2X SCORE', {
+      fontSize: '22px', fontFamily: UI_FONT,
+      fontStyle: 'bold', color: '#ff8800',
+    }).setOrigin(0.5).setDepth(50).setAlpha(0);
+    this.tweens.add({ targets: sub, alpha: 1, duration: 300, delay: 200 });
+    this.tweens.add({ targets: sub, alpha: 0, duration: 400, delay: 1200, onComplete: () => sub.destroy() });
+
+    // Camera flash
+    this.screenFlash(0xff2222);
+
+    // Border glow — persistent during fever
+    this._drawFeverBorder();
+    this.feverBorderGfx.setAlpha(1);
+
+    // Countdown display
+    this.feverCountdown.setAlpha(1);
+    this.feverCountdown.setText(`FEVER ${this.feverTimeLeft}s`);
+
+    // Tick down every second
+    this.feverTickEvent = this.time.addEvent({
+      delay: 1000, repeat: this.feverDuration - 1,
+      callback: () => {
+        this.feverTimeLeft--;
+        if (this.feverTimeLeft > 0) {
+          this.feverCountdown.setText(`FEVER ${this.feverTimeLeft}s`);
+          this._drawFeverBorder(); // refresh glow intensity
+        } else {
+          this.deactivateFever();
+        }
+      },
+    });
+
+    this.updateFeverMeter(false);
+  }
+
+  _drawFeverBorder() {
+    const { width, height } = this.scale;
+    const intensity = Math.max(0.3, this.feverTimeLeft / this.feverDuration);
+    this.feverBorderGfx.clear();
+    this.feverBorderGfx.lineStyle(3, 0xff2222, intensity * 0.8);
+    this.feverBorderGfx.strokeRoundedRect(2, 2, width - 4, height - 4, 10);
+    this.feverBorderGfx.lineStyle(1, 0xff8800, intensity * 0.4);
+    this.feverBorderGfx.strokeRoundedRect(5, 5, width - 10, height - 10, 8);
+  }
+
+  deactivateFever() {
+    this.feverActive = false;
+    this.feverMeter = 0;
+    this.feverTimeLeft = 0;
+
+    if (this.feverTickEvent) {
+      this.feverTickEvent.remove(false);
+      this.feverTickEvent = null;
+    }
+
+    // Fade out border + countdown
+    this.tweens.add({ targets: this.feverBorderGfx, alpha: 0, duration: 500 });
+    this.tweens.add({ targets: this.feverCountdown, alpha: 0, duration: 300 });
+
+    this.updateFeverMeter(false);
+  }
+
+  // -----------------------------------------------------------
   // PAUSE SYSTEM
   // -----------------------------------------------------------
   togglePause() {
@@ -1986,7 +2175,7 @@ class GameScene extends Phaser.Scene {
       callback: () => {
         this.cleanupPause();
         if (!this.gameOver && (this.score > 0 || this.totalPops > 0)) {
-          CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak, bestChain: this.bestChain });
+          CareerStats.record({ score: this.score, pops: this.totalPops, bestStreak: this.bestStreak, bestChain: this.bestChain, fevers: this.feverCount });
           saveHighScore(this.score);
         }
         window.audioEngine.stopBgBeat();
@@ -2075,6 +2264,9 @@ class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.isProcessing = true;
 
+    // Cancel fever if active
+    if (this.feverActive) this.deactivateFever();
+
     // Cancel timer to prevent further ticks after game ends
     if (this.timerEvent) {
       this.timerEvent.remove(false);
@@ -2094,6 +2286,7 @@ class GameScene extends Phaser.Scene {
       pops: this.totalPops,
       bestStreak: this.bestStreak,
       bestChain: this.bestChain,
+      fevers: this.feverCount,
     });
 
     // Record in Hall of Fame
@@ -2516,6 +2709,7 @@ class GameScene extends Phaser.Scene {
     const points = this.calculateMatchScore(totalPopped, powerUpsToActivate.length);
     const anchor = matchGroups[0]?.[0] ?? null;
     this.applyMatchFeedback(points, this.streak, anchor);
+    this.feedFever(totalPopped, this.streak);
     this.startCascadeCycle();
   }
 
@@ -2527,7 +2721,8 @@ class GameScene extends Phaser.Scene {
     const streakMultiplier = Math.min(this.streak, 10);
     const sizeBonus = totalPopped > 4 ? (totalPopped - 4) * 15 : 0;
     const powerUpBonus = powerUpsActivated * 50;
-    const points = (baseScore + sizeBonus + powerUpBonus) * streakMultiplier;
+    const feverBonus = this.feverActive ? 2 : 1;
+    const points = (baseScore + sizeBonus + powerUpBonus) * streakMultiplier * feverBonus;
     this.score += points;
     this.scoreText.setText(`SCORE: ${this.score.toLocaleString()}`);
     return points;
@@ -2538,7 +2733,8 @@ class GameScene extends Phaser.Scene {
   // -----------------------------------------------------------
   applyMatchFeedback(points, streak, anchorBubble) {
     if (anchorBubble) {
-      this.showScorePopup(anchorBubble.x, anchorBubble.y, `+${points}`, streak);
+      const label = this.feverActive ? `+${points} 🔥` : `+${points}`;
+      this.showScorePopup(anchorBubble.x, anchorBubble.y, label, streak);
     }
 
     window.audioEngine.playStreakHit(streak);

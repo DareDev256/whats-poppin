@@ -9,12 +9,13 @@ Built with zero build tools — vanilla JS, Phaser 3, Web Audio API. No framewor
 - **Core loop** — Swap adjacent bubbles, match 3+ to pop, trigger cascading combos
 - **Power-ups** — Match 4 → Line Clear · Match 5+ → Bomb · L/T shape → Color Nuke
 - **Streak system** — Chain matches for escalating multipliers: 3x NICE → 5x FIRE → 8x GODLIKE → 12x LEGENDARY. Progress bar with tier markers, glow pulses on threshold hits, and camera shake that intensifies with streak tier
+- **Fever Mode** — A hype meter fills with every match (bigger matches = more fuel). At 100%, activates FEVER: 2X score multiplier for 8 seconds with a rising siren SFX, screen-border glow, and countdown timer. Tracked in career stats with a dedicated achievement
 - **Cascade chains** — When a single move triggers gravity-driven chain reactions, escalating announcements appear at screen center: DOUBLE → TRIPLE → MEGA → ULTRA → GODLIKE CHAIN, with spring animations and particle bursts
 - **4 characters** — Kira, Blaze, Ronin, Empress — procedurally drawn, each with a unique vibe
 - **Two modes** — Timed (90s countdown) and Zen (infinite). Pause fully freezes all game logic — scene clock, cascade timers, tip rotation, ambient particles
 - **Hall of Fame** — Top 10 ranked leaderboard with gold/silver/bronze medals, streak tier labels, animated glow on new entries. Schema-validated persistence
-- **Achievements** — 9 unlockable badges tied to career milestones (streaks, chains, pops, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
-- **Career Stats** — Cross-session tracking: games played, total pops, best score/streak/chain, averages, tier unlocks
+- **Achievements** — 10 unlockable badges tied to career milestones (streaks, chains, pops, fevers, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
+- **Career Stats** — Cross-session tracking: games played, total pops, best score/streak/chain, fevers activated, averages, tier unlocks
 - **Performance Scan** — Skill bracket rating (Rookie → Mythic), animated stat bars, 3 progressive challenges tailored to your stats
 - **Tutorial** — Interactive walkthrough for new players
 - **PWA** — Installable, offline-capable, mobile-optimized
@@ -68,11 +69,11 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 │
 ├── src/
 │   ├── init.js          (79)  SafeStorage — tamper-resistant localStorage with FNV-1a checksums
-│   ├── audio.js        (620)  AudioEngine — synthesized lo-fi beat, 808 bass, melodic pops, streak SFX, auto-recovery on context interruption
+│   ├── audio.js        (665)  AudioEngine — synthesized lo-fi beat, 808 bass, melodic pops, streak SFX, fever siren, auto-recovery on context interruption
 │   ├── icons.js        (265)  Procedural icon library — 15 icons, zero external assets
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
-│   ├── game.js       (3,048)  10 scenes, grid logic, scoring, achievements, cascade chains, UI utilities, Phaser config
+│   ├── game.js       (3,224)  10 scenes, grid logic, scoring, achievements, fever mode, cascade chains, UI utilities, Phaser config
 │   └── game.test.js  (1,630)  162 unit tests (Vitest)
 │
 ├── src/styles.css             External styles (zero unsafe-inline CSP)
@@ -91,7 +92,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 | `GameOverScene` | Score display, Hall of Fame rank, replay options |
 | `HallOfFameScene` | Top 10 leaderboard with medals and streak tiers |
 | `StatsScene` | Career stats dashboard — lifetime totals, averages, records |
-| `AchievementsScene` | Badge wall — 8 unlockable achievements with glow effects |
+| `AchievementsScene` | Badge wall — 10 unlockable achievements with glow effects |
 | `ScanScene` | Performance evaluation — skill bracket, stat bars, challenges |
 | `TutorialScene` | Interactive gameplay walkthrough |
 | `TipsScene` | Tips and hints |
@@ -104,7 +105,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 | `CareerStats` | `.load()` · `.record(gameData)` · `.save()` | Cross-session stat persistence with schema validation |
 | `HallOfFame` | `.load()` · `.add(entry)` · `.getRank(score)` | Top-10 leaderboard with clamped/validated entries |
 | `Achievements` | `.load()` · `.check(stats)` · `.count()` | Badge unlock tracking with SafeStorage persistence |
-| `AudioEngine` | `.playPop()` · `.playSelect()` · `.playStreakHit()` · `.setMuted(bool)` | Synthesized audio with mute persistence |
+| `AudioEngine` | `.playPop()` · `.playSelect()` · `.playStreakHit()` · `.playFeverActivate()` · `.setMuted(bool)` | Synthesized audio with mute persistence |
 | `PowerUpSystem` | `.analyze(matches)` | Match pattern → power-up type resolution |
 | Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `textStyle(size, color, extra?)` · `saveHighScore(score)` · `toggleMuteAndSave()` · `createButton()` · `drawCard()` | Shared game logic, text style factory, and UI helpers |
 

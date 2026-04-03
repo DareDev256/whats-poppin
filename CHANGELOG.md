@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0] — 2026-04-03
+
+### Added
+- **Fever Mode** — A vertical hype meter on the left edge of the game area fills with every match (proportional to bubbles popped × streak multiplier). When the meter hits 100%, FEVER activates: **2X score multiplier** for 8 seconds, with a rising siren SFX (`playFeverActivate`), screen-border double-glow, countdown timer, and "FEVER!" announcement with spring animation. Meter color ramps from cool (dim) → yellow → orange → red as it fills, with glow pulses near capacity
+- **Fever achievement** — "FEVER PITCH" badge (🔥 `#ff2222`) unlocks on first fever activation, bringing total achievements to 10
+- **Career stat: totalFevers** — New schema field tracks lifetime fever activations across sessions, displayed in the Stats scene grid
+- **Gameplay tip** — "Fill the Fever meter with matches — 2X score for 8 seconds when it peaks" added to rotating tips
+- **Score popup enhancement** — During fever, score popups show 🔥 suffix for visual confirmation of active multiplier
+
+### Changed
+- **Scoring formula** — `calculateMatchScore` now applies a `feverBonus` (2x when active, 1x otherwise) on top of existing streak/size/powerUp multipliers
+- **Stats scene** — Grid expanded from 6 to 8 cells: added FEVERS and AVG POPS cards
+
 ## [0.10.2] — 2026-04-02
 
 ### Added
