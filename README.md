@@ -41,7 +41,7 @@ npx serve . -l 3333
 npm test
 ```
 
-166 unit tests (Vitest), all passing. Coverage:
+170 unit tests (Vitest), all passing. Coverage:
 
 | Module | What's tested |
 |--------|--------------|
@@ -74,7 +74,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 │   ├── powerups.js     (217)  PowerUpSystem (match analysis) + PowerUpRenderer (overlays)
 │   ├── characters.js   (871)  Procedural character drawing — Kira, Blaze, Ronin, Empress
 │   ├── game.js       (3,224)  10 scenes, grid logic, scoring, achievements, fever mode, cascade chains, UI utilities, Phaser config
-│   └── game.test.js  (1,630)  162 unit tests (Vitest)
+│   └── game.test.js  (1,630)  170 unit tests (Vitest)
 │
 ├── src/styles.css             External styles (zero unsafe-inline CSP)
 └── src/offline.css            Offline fallback styles
@@ -89,7 +89,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 | `BootScene` | Asset loading, initialization |
 | `TitleScene` | Main menu — mode select, stats preview, sound toggle |
 | `GameScene` | Core gameplay — grid, matching, cascades, streaks, power-ups |
-| `GameOverScene` | Score display, Hall of Fame rank, replay options |
+| `GameOverScene` | Score display, Hall of Fame rank, share score, replay options |
 | `HallOfFameScene` | Top 10 leaderboard with medals and streak tiers |
 | `StatsScene` | Career stats dashboard — lifetime totals, averages, records |
 | `AchievementsScene` | Badge wall — 10 unlockable achievements with glow effects |
@@ -107,7 +107,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 | `Achievements` | `.load()` · `.check(stats)` · `.count()` | Badge unlock tracking with SafeStorage persistence |
 | `AudioEngine` | `.playPop()` · `.playSelect()` · `.playStreakHit()` · `.playFeverActivate()` · `.setMuted(bool)` | Synthesized audio with mute persistence |
 | `PowerUpSystem` | `.analyze(matches)` | Match pattern → power-up type resolution |
-| Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `textStyle(size, color, extra?)` · `saveHighScore(score)` · `toggleMuteAndSave()` · `createButton()` · `drawCard()` | Shared game logic, text style factory, and UI helpers |
+| Utilities | `getStreakTier(val)` · `initAudioWithPrefs()` · `shareScore(data)` · `textStyle(size, color, extra?)` · `saveHighScore(score)` · `toggleMuteAndSave()` · `createButton()` · `drawCard()` | Shared game logic, text style factory, share via Web Share API / clipboard, and UI helpers |
 
 ## Tech Stack
 
@@ -116,7 +116,7 @@ whats-poppin/                  ~6,200 LOC (game) + 1,600 LOC (tests)
 | Engine | **Phaser 3.90** — loaded from jsDelivr CDN with SRI |
 | Audio | **Web Audio API** — all sound synthesized, zero external files |
 | Language | **Vanilla JS** — no build step, no framework, JSDoc-documented |
-| Tests | **Vitest 4.1** — 162 unit tests |
+| Tests | **Vitest 4.1** — 170 unit tests |
 | Hosting | Static — Vercel, Netlify, or any static host |
 
 ## Security

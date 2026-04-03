@@ -60,6 +60,42 @@ function getStreakTier(value) {
 }
 
 /**
+ * Generate a shareable score card text and trigger Web Share API or clipboard fallback.
+ * Returns a promise that resolves when sharing completes or text is copied.
+ * @param {object} data - { score, bestStreak, bestChain, moves, mode }
+ */
+async function shareScore(data) {
+  const { score, bestStreak, bestChain, moves, mode } = data;
+  const tier = getStreakTier(bestStreak);
+  const tierLabel = tier ? tier.label : 'ROOKIE';
+  const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
+  const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
+  const chainStr = (bestChain || 0) > 0 ? `${bestChain}x chain` : '';
+
+  const lines = [
+    `🎮 What's Poppin — ${modeLabel} Mode`,
+    ``,
+    `🏆 ${score.toLocaleString()} pts`,
+    `🔥 ${bestStreak}x streak (${tierLabel})`,
+    chainStr ? `⛓️ ${chainStr}` : '',
+    `📊 ${avgPerMove} avg/move`,
+    ``,
+    `Can you beat that? 👀`,
+  ].filter(Boolean).join('\n');
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "What's Poppin Score", text: lines });
+      return 'shared';
+    } catch { return 'cancelled'; }
+  }
+  try {
+    await navigator.clipboard.writeText(lines);
+    return 'copied';
+  } catch { return 'failed'; }
+}
+
+/**
  * Initialize audio engine and restore the user's mute preference.
  * Centralizes the init → resume → restore-mute sequence used by multiple scenes.
  */
@@ -777,19 +813,37 @@ class GameOverScene extends Phaser.Scene {
     }
 
     // Buttons
-    const btnY1 = height * 0.78;
+    const btnY1 = height * 0.77;
     const btnW = width - 80;
-    createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 38,
+    const btnGap = 44;
+    createButton(this, { x: width / 2, y: btnY1, width: btnW, height: 36,
       text: 'PLAY AGAIN', color: '#2ecc71',
       iconFn: (s, bx, by) => Icons.play(s, bx, by, 14, 0x2ecc71),
       callback: () => this.scene.start('GameScene', { mode: this._mode }),
     });
-    createButton(this, { x: width / 2, y: btnY1 + 48, width: btnW, height: 38,
+    createButton(this, { x: width / 2, y: btnY1 + btnGap, width: btnW, height: 36,
+      text: 'SHARE SCORE', color: '#3498db',
+      iconFn: (s, bx, by) => Icons.share(s, bx, by, 14, 0x3498db),
+      callback: () => {
+        shareScore({ score, bestStreak, bestChain, moves, mode: this._mode }).then((result) => {
+          if (result === 'copied' || result === 'shared') {
+            const msg = result === 'copied' ? 'COPIED TO CLIPBOARD ✓' : 'SHARED ✓';
+            const toast = this.add.text(width / 2, btnY1 + btnGap - 28, msg,
+              textStyle('12px', '#3498db', { fontStyle: 'bold' }),
+            ).setOrigin(0.5).setAlpha(0);
+            this.tweens.add({ targets: toast, alpha: 1, duration: 200 });
+            this.tweens.add({ targets: toast, alpha: 0, y: toast.y - 20,
+              duration: 600, delay: 1600, onComplete: () => toast.destroy() });
+          }
+        });
+      },
+    });
+    createButton(this, { x: width / 2, y: btnY1 + btnGap * 2, width: btnW, height: 36,
       text: 'HALL OF FAME', color: '#f1c40f',
       iconFn: (s, bx, by) => Icons.crown(s, bx, by, 14, 0xf1c40f),
       callback: () => this.scene.start('HallOfFameScene', { highlightRank: hofRank, returnTo: 'TitleScene' }),
     });
-    createButton(this, { x: width / 2, y: btnY1 + 96, width: btnW, height: 38,
+    createButton(this, { x: width / 2, y: btnY1 + btnGap * 3, width: btnW, height: 36,
       text: 'MENU', color: '#aaaaaa',
       iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xaaaaaa),
       callback: () => this.scene.start('TitleScene'),

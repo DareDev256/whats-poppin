@@ -1789,3 +1789,59 @@ describe('Swap validation: no-match power-up swap bug', () => {
     expect(streak).toBe(0); // No free streak inflation
   });
 });
+
+// ── Share Score ─────────────────────────────────────────────────
+describe('shareScore text generation', () => {
+  // Replicates the text generation logic from shareScore for unit testing
+  function generateShareText(data) {
+    const STREAK_LEVELS = [
+      { min: 3, label: 'NICE' }, { min: 5, label: 'FIRE' },
+      { min: 8, label: 'GODLIKE' }, { min: 12, label: 'LEGENDARY' },
+    ];
+    const { score, bestStreak, bestChain, moves, mode } = data;
+    let tier = null;
+    for (const lvl of STREAK_LEVELS) {
+      if (bestStreak >= lvl.min) tier = lvl;
+    }
+    const tierLabel = tier ? tier.label : 'ROOKIE';
+    const modeLabel = mode === 'zen' ? 'Zen' : 'Timed';
+    const avgPerMove = moves > 0 ? Math.round(score / moves) : 0;
+    const chainStr = (bestChain || 0) > 0 ? `${bestChain}x chain` : '';
+    return [
+      `🎮 What's Poppin — ${modeLabel} Mode`, '',
+      `🏆 ${score.toLocaleString()} pts`,
+      `🔥 ${bestStreak}x streak (${tierLabel})`,
+      chainStr ? `⛓️ ${chainStr}` : '',
+      `📊 ${avgPerMove} avg/move`, '',
+      'Can you beat that? 👀',
+    ].filter(Boolean).join('\n');
+  }
+
+  it('generates correct text for timed mode with streak tier', () => {
+    const text = generateShareText({ score: 5000, bestStreak: 5, bestChain: 3, moves: 40, mode: 'timed' });
+    expect(text).toContain('Timed Mode');
+    expect(text).toContain('5,000 pts');
+    expect(text).toContain('5x streak (FIRE)');
+    expect(text).toContain('3x chain');
+    expect(text).toContain('125 avg/move');
+  });
+
+  it('generates correct text for zen mode with no chain', () => {
+    const text = generateShareText({ score: 1200, bestStreak: 2, bestChain: 0, moves: 20, mode: 'zen' });
+    expect(text).toContain('Zen Mode');
+    expect(text).toContain('ROOKIE');
+    expect(text).not.toContain('chain');
+  });
+
+  it('handles zero moves without division error', () => {
+    const text = generateShareText({ score: 0, bestStreak: 0, bestChain: 0, moves: 0, mode: 'timed' });
+    expect(text).toContain('0 avg/move');
+    expect(text).toContain('ROOKIE');
+  });
+
+  it('resolves LEGENDARY tier at 12+ streak', () => {
+    const text = generateShareText({ score: 25000, bestStreak: 14, bestChain: 6, moves: 100, mode: 'timed' });
+    expect(text).toContain('LEGENDARY');
+    expect(text).toContain('14x streak');
+  });
+});

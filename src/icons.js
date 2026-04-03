@@ -284,6 +284,32 @@ class Icons {
     return g;
   }
 
+  /** Share icon — upward arrow with tray for social sharing */
+  static share(scene, x, y, size = 16, color = 0xffffff) {
+    const g = scene.add.graphics();
+    const s = size * 0.45;
+    g.lineStyle(2, color, 1);
+    // Upward arrow shaft
+    g.beginPath();
+    g.moveTo(x, y - s);
+    g.lineTo(x, y + s * 0.3);
+    g.strokePath();
+    // Arrow head
+    g.beginPath();
+    g.moveTo(x - s * 0.5, y - s * 0.4);
+    g.lineTo(x, y - s);
+    g.lineTo(x + s * 0.5, y - s * 0.4);
+    g.strokePath();
+    // Tray (U-shape)
+    g.beginPath();
+    g.moveTo(x - s * 0.7, y - s * 0.1);
+    g.lineTo(x - s * 0.7, y + s * 0.7);
+    g.lineTo(x + s * 0.7, y + s * 0.7);
+    g.lineTo(x + s * 0.7, y - s * 0.1);
+    g.strokePath();
+    return g;
+  }
+
   /** Lock icon — padlock shape for locked achievements */
   static lock(scene, x, y, size = 16, color = 0x555555) {
     const g = scene.add.graphics();

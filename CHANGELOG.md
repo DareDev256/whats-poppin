@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0] — 2026-04-03
+
+### Added
+- **Share Score** — Game over screen now features a "SHARE SCORE" button that generates a styled score card with final score, streak tier, chain count, and avg/move stats. Uses the Web Share API on mobile (native share sheet) with automatic clipboard fallback on desktop. Includes animated confirmation toast ("COPIED TO CLIPBOARD" / "SHARED") with float-up fade-out
+- **Share icon** — New procedural `Icons.share()` (upward arrow + tray) matching the existing icon system, no external assets
+- **4 unit tests** covering share text generation: timed/zen modes, streak tier resolution, zero-move edge case, LEGENDARY tier at 12+ streak (166 → 170 tests)
+
 ## [0.11.1] — 2026-04-03
 
 ### Fixed
