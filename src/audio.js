@@ -73,23 +73,84 @@ class AudioEngine {
   }
 
   // -------------------------------------------------------
+  // VOICE HELPERS — eliminate osc/gain/connect/start/stop boilerplate
+  // -------------------------------------------------------
+
+  /**
+   * Create a single oscillator voice routed through the compressor.
+   * Returns the OscillatorNode for optional bgNodes tracking.
+   * @param {Object} o - Voice config
+   * @param {string}  o.type      - Oscillator waveform ('sine','triangle','sawtooth','square')
+   * @param {number}  o.freq      - Starting frequency (Hz)
+   * @param {number}  o.vol       - Starting gain (0–1)
+   * @param {number}  o.start     - AudioContext time to start
+   * @param {number}  o.stop      - AudioContext time to stop
+   * @param {number} [o.freqEnd]  - Frequency to ramp to (exponential)
+   * @param {number} [o.freqAt]   - Time to reach freqEnd
+   * @param {number} [o.fadeAt]   - Time to fade gain to 0.001 (exponential)
+   * @param {AudioNode} [o.via]   - Optional node to route through before compressor (e.g. waveshaper)
+   * @returns {OscillatorNode}
+   */
+  _tone({ type, freq, vol, start, stop, freqEnd, freqAt, fadeAt, via }) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    if (freqEnd && freqAt) osc.frequency.exponentialRampToValueAtTime(freqEnd, freqAt);
+    gain.gain.setValueAtTime(vol, start);
+    if (fadeAt) gain.gain.exponentialRampToValueAtTime(0.001, fadeAt);
+    osc.connect(via || gain);
+    if (via) via.connect(gain);
+    gain.connect(this.compressor);
+    osc.start(start);
+    osc.stop(stop);
+    return osc;
+  }
+
+  /**
+   * Create a filtered noise burst (used for pops, hi-hats, snares, whooshes).
+   * @param {Object} n - Noise config
+   * @param {number} n.start      - AudioContext start time
+   * @param {number} n.dur        - Duration in seconds
+   * @param {number} n.vol        - Peak gain (0–1)
+   * @param {string} [n.filter='bandpass'] - BiquadFilter type
+   * @param {number} [n.filterFreq=3000]   - Filter center/cutoff frequency
+   * @param {number} [n.Q=1.5]    - Filter Q factor
+   * @param {number} [n.decay=3]  - Envelope power curve exponent (higher = faster decay)
+   * @returns {AudioBufferSourceNode}
+   */
+  _noise({ start, dur, vol, filter = 'bandpass', filterFreq = 3000, Q = 1.5, decay = 3 }) {
+    const len = this.ctx.sampleRate * dur;
+    const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = filter;
+    filt.frequency.value = filterFreq;
+    filt.Q.value = Q;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(vol, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+    src.connect(filt);
+    filt.connect(gain);
+    gain.connect(this.compressor);
+    src.start(start);
+    src.stop(start + dur);
+    return src;
+  }
+
+  // -------------------------------------------------------
   // BUBBLE SELECT — soft click
   // -------------------------------------------------------
   playSelect() {
     if (!this._isReady()) return;
-    const now = this.ctx.currentTime;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 800;
-    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.06);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.1);
+    const t = this.ctx.currentTime;
+    this._tone({ type: 'sine', freq: 800, vol: 0.15, start: t, stop: t + 0.1,
+      freqEnd: 1200, freqAt: t + 0.06, fadeAt: t + 0.1 });
   }
 
   // -------------------------------------------------------
@@ -97,8 +158,7 @@ class AudioEngine {
   // -------------------------------------------------------
   playPop(streak = 1, bubbleIndex = 0) {
     if (!this._isReady()) return;
-    const now = this.ctx.currentTime;
-    const delay = bubbleIndex * 0.04; // Stagger pops in a group
+    const t = this.ctx.currentTime + bubbleIndex * 0.04; // Stagger pops
 
     // Pick note from scale — rises with streak for satisfying escalation
     const noteIdx = Math.min(this.popIndex % this.scale.length, this.scale.length - 1);
@@ -106,63 +166,25 @@ class AudioEngine {
     this.popIndex++;
 
     // Main pop tone
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now + delay);
-    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + delay + 0.08);
-    gain.gain.setValueAtTime(0.2, now + delay);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now + delay);
-    osc.stop(now + delay + 0.15);
+    this._tone({ type: 'triangle', freq, vol: 0.2, start: t, stop: t + 0.15,
+      freqEnd: freq * 1.5, freqAt: t + 0.08, fadeAt: t + 0.15 });
 
     // Pop noise burst — the "crunch"
-    this.playNoiseBurst(now + delay, 0.06, 0.12);
+    this._noise({ start: t, dur: 0.06, vol: 0.12 });
 
     // Extra harmonics on higher streaks
     if (streak >= 3) {
-      const osc2 = this.ctx.createOscillator();
-      const gain2 = this.ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.value = freq * 2;
-      gain2.gain.setValueAtTime(0.08, now + delay);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.12);
-      osc2.connect(gain2);
-      gain2.connect(this.compressor);
-      osc2.start(now + delay);
-      osc2.stop(now + delay + 0.12);
+      this._tone({ type: 'sine', freq: freq * 2, vol: 0.08, start: t, stop: t + 0.12,
+        fadeAt: t + 0.12 });
     }
   }
 
   // -------------------------------------------------------
   // NOISE BURST — used for pop texture
   // -------------------------------------------------------
+  /** @deprecated Use _noise() directly — kept for backward compat with game.js calls */
   playNoiseBurst(startTime, duration, volume) {
-    const bufferSize = this.ctx.sampleRate * duration;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 3000;
-    filter.Q.value = 1.5;
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(volume, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.compressor);
-    noise.start(startTime);
-    noise.stop(startTime + duration);
+    this._noise({ start: startTime, dur: duration, vol: volume });
   }
 
   // -------------------------------------------------------
@@ -186,131 +208,57 @@ class AudioEngine {
 
   // 3-streak: quick vinyl scratch + chord
   playNice(t) {
-    // Rising chord
+    // Rising chord — staggered triangle voices
     [1, 1.25, 1.5].forEach((mult, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = 440 * mult;
-      gain.gain.setValueAtTime(0.1, t + i * 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.connect(gain);
-      gain.connect(this.compressor);
-      osc.start(t + i * 0.03);
-      osc.stop(t + 0.35);
+      const s = t + i * 0.03;
+      this._tone({ type: 'triangle', freq: 440 * mult, vol: 0.1, start: s, stop: t + 0.35,
+        fadeAt: t + 0.3 });
     });
-
     // Quick scratch noise
-    this.playNoiseBurst(t, 0.08, 0.15);
+    this._noise({ start: t, dur: 0.08, vol: 0.15 });
   }
 
   // 5-streak: 808 kick + rising synth
   playFire(t) {
     // 808 sub kick
-    const kick = this.ctx.createOscillator();
-    const kickGain = this.ctx.createGain();
-    kick.type = 'sine';
-    kick.frequency.setValueAtTime(150, t);
-    kick.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    kickGain.gain.setValueAtTime(0.4, t);
-    kickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    kick.connect(kickGain);
-    kickGain.connect(this.compressor);
-    kick.start(t);
-    kick.stop(t + 0.3);
-
+    this._tone({ type: 'sine', freq: 150, vol: 0.4, start: t, stop: t + 0.3,
+      freqEnd: 40, freqAt: t + 0.2, fadeAt: t + 0.3 });
     // Rising synth sweep
-    const sweep = this.ctx.createOscillator();
-    const sweepGain = this.ctx.createGain();
-    sweep.type = 'sawtooth';
-    sweep.frequency.setValueAtTime(200, t);
-    sweep.frequency.exponentialRampToValueAtTime(800, t + 0.25);
-    sweepGain.gain.setValueAtTime(0.08, t);
-    sweepGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    sweep.connect(sweepGain);
-    sweepGain.connect(this.compressor);
-    sweep.start(t);
-    sweep.stop(t + 0.35);
-
-    // Hi-hat
-    this.playNoiseBurst(t + 0.05, 0.04, 0.2);
-    this.playNoiseBurst(t + 0.12, 0.03, 0.15);
+    this._tone({ type: 'sawtooth', freq: 200, vol: 0.08, start: t, stop: t + 0.35,
+      freqEnd: 800, freqAt: t + 0.25, fadeAt: t + 0.3 });
+    // Hi-hat double tap
+    this._noise({ start: t + 0.05, dur: 0.04, vol: 0.2 });
+    this._noise({ start: t + 0.12, dur: 0.03, vol: 0.15 });
   }
 
   // 8-streak: heavy 808, anime slash, power chord
   playGodlike(t) {
     // HEAVY sub bass
-    const sub = this.ctx.createOscillator();
-    const subGain = this.ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(200, t);
-    sub.frequency.exponentialRampToValueAtTime(30, t + 0.4);
-    subGain.gain.setValueAtTime(0.5, t);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    sub.connect(subGain);
-    subGain.connect(this.compressor);
-    sub.start(t);
-    sub.stop(t + 0.5);
-
+    this._tone({ type: 'sine', freq: 200, vol: 0.5, start: t, stop: t + 0.5,
+      freqEnd: 30, freqAt: t + 0.4, fadeAt: t + 0.5 });
     // Anime slash — fast descending noise
-    this.playNoiseBurst(t, 0.12, 0.3);
-
+    this._noise({ start: t, dur: 0.12, vol: 0.3 });
     // Power chord stab
-    [329.63, 415.30, 493.88, 659.25].forEach((freq, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.06, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.connect(gain);
-      gain.connect(this.compressor);
-      osc.start(t + 0.02);
-      osc.stop(t + 0.45);
+    [329.63, 415.30, 493.88, 659.25].forEach(freq => {
+      this._tone({ type: 'square', freq, vol: 0.06, start: t + 0.02, stop: t + 0.45,
+        fadeAt: t + 0.4 });
     });
-
     // Metallic ring
-    const ring = this.ctx.createOscillator();
-    const ringGain = this.ctx.createGain();
-    ring.type = 'sine';
-    ring.frequency.value = 2400;
-    ringGain.gain.setValueAtTime(0.05, t);
-    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-    ring.connect(ringGain);
-    ringGain.connect(this.compressor);
-    ring.start(t);
-    ring.stop(t + 0.6);
+    this._tone({ type: 'sine', freq: 2400, vol: 0.05, start: t, stop: t + 0.6,
+      fadeAt: t + 0.6 });
   }
 
   // 12-streak: full cinematic — bass drop, reverse cymbal, chord swell
   playLegendary(t) {
     // MASSIVE bass drop
-    const drop = this.ctx.createOscillator();
-    const dropGain = this.ctx.createGain();
-    drop.type = 'sine';
-    drop.frequency.setValueAtTime(300, t);
-    drop.frequency.exponentialRampToValueAtTime(25, t + 0.6);
-    dropGain.gain.setValueAtTime(0.6, t);
-    dropGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-    drop.connect(dropGain);
-    dropGain.connect(this.compressor);
-    drop.start(t);
-    drop.stop(t + 0.8);
+    this._tone({ type: 'sine', freq: 300, vol: 0.6, start: t, stop: t + 0.8,
+      freqEnd: 25, freqAt: t + 0.6, fadeAt: t + 0.8 });
 
-    // Distorted sub layer
-    const dist = this.ctx.createOscillator();
-    const distGain = this.ctx.createGain();
+    // Distorted sub layer — routes through waveshaper for grit
     const waveshaper = this.ctx.createWaveShaper();
     waveshaper.curve = this.makeDistortionCurve(80);
-    dist.type = 'sine';
-    dist.frequency.setValueAtTime(55, t);
-    distGain.gain.setValueAtTime(0.15, t);
-    distGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
-    dist.connect(waveshaper);
-    waveshaper.connect(distGain);
-    distGain.connect(this.compressor);
-    dist.start(t);
-    dist.stop(t + 0.7);
+    this._tone({ type: 'sine', freq: 55, vol: 0.15, start: t, stop: t + 0.7,
+      fadeAt: t + 0.7, via: waveshaper });
 
     // Reverse cymbal swell
     const swellDuration = 0.5;
@@ -358,37 +306,14 @@ class AudioEngine {
   playFeverActivate() {
     if (!this._isReady()) return;
     const t = this.ctx.currentTime;
-
     // Rising siren sweep
-    const siren = this.ctx.createOscillator();
-    const sirenGain = this.ctx.createGain();
-    siren.type = 'sawtooth';
-    siren.frequency.setValueAtTime(300, t);
-    siren.frequency.exponentialRampToValueAtTime(1200, t + 0.3);
-    siren.frequency.exponentialRampToValueAtTime(600, t + 0.5);
-    sirenGain.gain.setValueAtTime(0.1, t);
-    sirenGain.gain.linearRampToValueAtTime(0.15, t + 0.25);
-    sirenGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    siren.connect(sirenGain);
-    sirenGain.connect(this.compressor);
-    siren.start(t);
-    siren.stop(t + 0.55);
-
+    this._tone({ type: 'sawtooth', freq: 300, vol: 0.1, start: t, stop: t + 0.55,
+      freqEnd: 1200, freqAt: t + 0.3, fadeAt: t + 0.5 });
     // Sub impact at peak
-    const sub = this.ctx.createOscillator();
-    const subGain = this.ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(120, t + 0.25);
-    sub.frequency.exponentialRampToValueAtTime(40, t + 0.55);
-    subGain.gain.setValueAtTime(0.35, t + 0.25);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-    sub.connect(subGain);
-    subGain.connect(this.compressor);
-    sub.start(t + 0.25);
-    sub.stop(t + 0.65);
-
+    this._tone({ type: 'sine', freq: 120, vol: 0.35, start: t + 0.25, stop: t + 0.65,
+      freqEnd: 40, freqAt: t + 0.55, fadeAt: t + 0.6 });
     // Noise burst for texture
-    this.playNoiseBurst(t + 0.25, 0.1, 0.2);
+    this._noise({ start: t + 0.25, dur: 0.1, vol: 0.2 });
   }
 
   // -------------------------------------------------------
@@ -396,19 +321,9 @@ class AudioEngine {
   // -------------------------------------------------------
   playInvalid() {
     if (!this._isReady()) return;
-    const now = this.ctx.currentTime;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.2);
+    const t = this.ctx.currentTime;
+    this._tone({ type: 'sine', freq: 200, vol: 0.15, start: t, stop: t + 0.2,
+      freqEnd: 80, freqAt: t + 0.15, fadeAt: t + 0.2 });
   }
 
   // -------------------------------------------------------
@@ -416,19 +331,9 @@ class AudioEngine {
   // -------------------------------------------------------
   playLand(delay = 0) {
     if (!this._isReady()) return;
-    const now = this.ctx.currentTime + delay;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
-    gain.gain.setValueAtTime(0.06, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.1);
+    const t = this.ctx.currentTime + delay;
+    this._tone({ type: 'sine', freq: 120, vol: 0.06, start: t, stop: t + 0.1,
+      freqEnd: 60, freqAt: t + 0.08, fadeAt: t + 0.1 });
   }
 
   // -------------------------------------------------------
@@ -436,35 +341,9 @@ class AudioEngine {
   // -------------------------------------------------------
   playShuffle() {
     if (!this._isReady()) return;
-    const now = this.ctx.currentTime;
-
-    // Whoosh noise sweep
-    const bufferSize = this.ctx.sampleRate * 0.4;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1);
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(500, now);
-    filter.frequency.exponentialRampToValueAtTime(4000, now + 0.2);
-    filter.frequency.exponentialRampToValueAtTime(500, now + 0.4);
-    filter.Q.value = 2;
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.compressor);
-    noise.start(now);
-    noise.stop(now + 0.4);
+    // Whoosh — flat noise (decay=0) with bandpass sweep, louder than typical bursts
+    this._noise({ start: this.ctx.currentTime, dur: 0.4, vol: 0.15,
+      filter: 'bandpass', filterFreq: 2000, Q: 2, decay: 0 });
   }
 
   // -------------------------------------------------------
@@ -537,99 +416,35 @@ class AudioEngine {
   }
 
   bgKick(t) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(100, t);
-    osc.frequency.exponentialRampToValueAtTime(35, t + 0.12);
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + 0.2);
-    this.bgNodes.push(osc);
+    this.bgNodes.push(
+      this._tone({ type: 'sine', freq: 100, vol: 0.2, start: t, stop: t + 0.2,
+        freqEnd: 35, freqAt: t + 0.12, fadeAt: t + 0.2 })
+    );
   }
 
   bgHihat(t, vol = 0.05) {
-    const bufferSize = this.ctx.sampleRate * 0.05;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 8);
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 7000;
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(vol, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.compressor);
-    noise.start(t);
-    noise.stop(t + 0.05);
-    this.bgNodes.push(noise);
+    this.bgNodes.push(
+      this._noise({ start: t, dur: 0.05, vol, filter: 'highpass', filterFreq: 7000, decay: 8 })
+    );
   }
 
   bgSnare(t) {
     // Noise body
-    const bufferSize = this.ctx.sampleRate * 0.1;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 3000;
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.1, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.compressor);
-    noise.start(t);
-    noise.stop(t + 0.12);
-    this.bgNodes.push(noise);
-
+    this.bgNodes.push(
+      this._noise({ start: t, dur: 0.12, vol: 0.1 })
+    );
     // Tonal snap
-    const osc = this.ctx.createOscillator();
-    const oscGain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = 200;
-    oscGain.gain.setValueAtTime(0.08, t);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-    osc.connect(oscGain);
-    oscGain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + 0.06);
-    this.bgNodes.push(osc);
+    this.bgNodes.push(
+      this._tone({ type: 'triangle', freq: 200, vol: 0.08, start: t, stop: t + 0.06,
+        fadeAt: t + 0.06 })
+    );
   }
 
   bgBass(t, freq, duration) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.12, t);
-    gain.gain.setValueAtTime(0.12, t + duration * 0.8);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(t);
-    osc.stop(t + duration);
-    this.bgNodes.push(osc);
+    this.bgNodes.push(
+      this._tone({ type: 'sine', freq, vol: 0.12, start: t, stop: t + duration,
+        fadeAt: t + duration })
+    );
   }
 
   // -------------------------------------------------------

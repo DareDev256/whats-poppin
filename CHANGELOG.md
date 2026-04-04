@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2] — 2026-04-04
+
+### Changed
+- **AudioEngine voice helpers** — Extracted `_tone()` and `_noise()` private methods that encapsulate the repetitive oscillator→gain→connect→schedule→stop boilerplate. Refactored 12 sound methods (`playSelect`, `playPop`, `playInvalid`, `playLand`, `playShuffle`, `playNice`, `playFire`, `playGodlike`, `playFeverActivate`, `bgKick`, `bgHihat`, `bgSnare`, `bgBass`, `playLegendary` bass drop + distortion layer) to use the new helpers
+- **Net reduction of ~170 lines** in `audio.js` with zero behavioral changes — all 170 tests pass, all sounds identical
+- `playNoiseBurst` preserved as thin wrapper for backward compatibility with `game.js` callers
+
 ## [0.12.1] — 2026-04-04
 
 ### Security
