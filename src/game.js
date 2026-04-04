@@ -552,7 +552,7 @@ class GameOverScene extends Phaser.Scene {
     const bestStreak = Number.isFinite(safe.bestStreak) ? safe.bestStreak : 0;
     const moves = Number.isFinite(safe.moves) ? safe.moves : 0;
     const isNewHigh = !!safe.isNewHigh;
-    const mode = safe.mode || 'timed';
+    const mode = GameScene.VALID_MODES.has(safe.mode) ? safe.mode : 'timed';
     const feverCount = Number.isFinite(safe.feverCount) ? safe.feverCount : 0;
     const bestChain = Number.isFinite(safe.bestChain) ? safe.bestChain : 0;
 
@@ -1278,8 +1278,12 @@ class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  /** @type {ReadonlySet<string>} Allowed game mode values — rejects tampered scene data. */
+  static VALID_MODES = Object.freeze(new Set(['timed', 'zen']));
+
   init(data) {
-    this.gameMode = data?.mode || 'timed';
+    const rawMode = data?.mode || 'timed';
+    this.gameMode = GameScene.VALID_MODES.has(rawMode) ? rawMode : 'timed';
     this.grid = [];
     this.score = 0;
     this.streak = 0;
@@ -2373,7 +2377,15 @@ class GameScene extends Phaser.Scene {
    * @see safeScore — Guards against NaN/Infinity in score accumulation
    * @see Achievements.check — Tests all 8 milestone thresholds
    */
+  /** Maximum cascade recursion depth — prevents stack overflow from runaway chains. */
+  static MAX_CHAIN_DEPTH = 20;
+
   processMatches(matchGroups, depth = 1) {
+    // Guard: cap recursion depth to prevent stack overflow on degenerate grids
+    if (depth > GameScene.MAX_CHAIN_DEPTH) {
+      this.isProcessing = false;
+      return;
+    }
     this.streak++;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
     this.chainDepth = depth;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.3] — 2026-04-04
+
+### Security
+- **`gameMode` allowlist validation** — Scene data `mode` is now validated against a frozen allowlist (`Set(['timed', 'zen'])`) before use. Previously, `data.mode` from Phaser scene transitions was interpolated directly into localStorage key names (`whatspoppin_games_${this.gameMode}`), allowing devtools or tampered scene data to write arbitrary storage keys. Defense-in-depth validation also added to `GameOverScene`
+- **`processMatches` recursion depth cap** — Cascade chain recursion is now capped at 20 levels (`MAX_CHAIN_DEPTH`). Previously, a degenerate grid state (e.g. via memory manipulation) could trigger unbounded recursive `processMatches()` → `dropBubbles()` → `refillGrid()` → `findAllMatches()` → `processMatches()` chains, eventually causing a stack overflow and crashing the browser tab
+
 ## [0.13.2] — 2026-04-04
 
 ### Changed
