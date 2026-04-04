@@ -1672,110 +1672,142 @@ class GameScene extends Phaser.Scene {
   }
 
   update(time) {
-    // Render power-up overlays (pulsing animations)
-    if (this.powerUpOverlay) {
-      this.powerUpOverlay.clear();
-      for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-          const bubble = this.grid[r]?.[c];
-          if (bubble && bubble.getData('powerUp')) {
-            const pType = bubble.getData('powerUp');
-            if (pType !== POWERUP_TYPES.NONE) {
-              PowerUpRenderer.draw(
-                this.powerUpOverlay, pType,
-                bubble.x, bubble.y, BUBBLE_SIZE, time
-              );
-            }
-          }
+    this.renderPowerUpOverlays(time);
+    this.renderFeverMeter(time);
+    this.renderHintGlow(time);
+  }
+
+  // -----------------------------------------------------------
+  // RENDER SUBSYSTEMS — Each per-frame visual concern is isolated
+  // so individual effects can be modified, disabled, or tested
+  // without touching unrelated rendering code.
+  // -----------------------------------------------------------
+
+  /**
+   * Draw pulsing power-up icons on special bubbles each frame.
+   * Iterates the full grid, delegating to PowerUpRenderer for each
+   * bubble that carries a non-NONE power-up data key.
+   * @param {number} time — game clock in ms (drives pulse animation)
+   */
+  renderPowerUpOverlays(time) {
+    if (!this.powerUpOverlay) return;
+    this.powerUpOverlay.clear();
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const bubble = this.grid[r]?.[c];
+        if (!bubble) continue;
+        const pType = bubble.getData('powerUp');
+        if (pType && pType !== POWERUP_TYPES.NONE) {
+          PowerUpRenderer.draw(
+            this.powerUpOverlay, pType,
+            bubble.x, bubble.y, BUBBLE_SIZE, time
+          );
         }
       }
     }
+  }
 
-    // Render fever meter + border glow
-    if (this.feverGfx) {
-      this.feverGfx.clear();
-      const fb = this.feverBarBounds;
-      const fill = this.feverActive ? 100 : this.feverMeter;
+  /**
+   * Render the fever meter bar, percentage text, and active-fever border glow.
+   *
+   * The bar fills bottom-up through four color stages:
+   *   blue (0-25%) → green (25-50%) → gold (50-80%) → red (80-100%).
+   * During fever mode the bar locks at 100% gold with a sin-wave pulse,
+   * and a double-stroke gold border frames the entire game area.
+   *
+   * @param {number} time — game clock in ms (drives pulse/glow animation)
+   */
+  renderFeverMeter(time) {
+    if (!this.feverGfx) return;
+    this.feverGfx.clear();
+    const fb = this.feverBarBounds;
+    const fill = this.feverActive ? 100 : this.feverMeter;
 
-      // Track background
-      this.feverGfx.fillStyle(0x1a1a2e, 0.6);
-      this.feverGfx.fillRoundedRect(fb.x, fb.y, fb.w, fb.h, 4);
+    // Track background
+    this.feverGfx.fillStyle(0x1a1a2e, 0.6);
+    this.feverGfx.fillRoundedRect(fb.x, fb.y, fb.w, fb.h, 4);
 
-      // Fill bar (bottom-up) with color stages
-      if (fill > 0) {
-        const fillH = (fill / 100) * fb.h;
-        const fillY = fb.y + fb.h - fillH;
-        let barColor;
-        if (this.feverActive) barColor = 0xffd700;
-        else if (fill > 80) barColor = 0xe74c3c;
-        else if (fill > 50) barColor = 0xf1c40f;
-        else if (fill > 25) barColor = 0x2ecc71;
-        else barColor = 0x3498db;
+    // Fill bar (bottom-up) with color stages
+    if (fill > 0) {
+      const fillH = (fill / 100) * fb.h;
+      const fillY = fb.y + fb.h - fillH;
+      const barColor = this.feverActive ? 0xffd700
+        : fill > 80 ? 0xe74c3c
+        : fill > 50 ? 0xf1c40f
+        : fill > 25 ? 0x2ecc71
+        : 0x3498db;
 
-        const pulse = this.feverActive ? 0.7 + 0.3 * Math.sin(time * 0.008) : 0.85;
-        this.feverGfx.fillStyle(barColor, pulse);
-        this.feverGfx.fillRoundedRect(fb.x, fillY, fb.w, fillH, 4);
+      const pulse = this.feverActive ? 0.7 + 0.3 * Math.sin(time * 0.008) : 0.85;
+      this.feverGfx.fillStyle(barColor, pulse);
+      this.feverGfx.fillRoundedRect(fb.x, fillY, fb.w, fillH, 4);
 
-        // Bright edge highlight
-        this.feverGfx.fillStyle(0xffffff, 0.15 * pulse);
-        this.feverGfx.fillRect(fb.x + 1, fillY, 2, fillH);
-      }
-
-      // Fever active: pulsing gold border around entire game area
-      if (this.feverActive) {
-        const { width, height } = this.scale;
-        const glow = 0.2 + 0.15 * Math.sin(time * 0.006);
-        this.feverGfx.lineStyle(3, 0xffd700, glow);
-        this.feverGfx.strokeRect(1, 1, width - 2, height - 2);
-        this.feverGfx.lineStyle(1.5, 0xffd700, glow * 0.5);
-        this.feverGfx.strokeRect(4, 4, width - 8, height - 8);
-      }
-
-      // Update text
-      if (!this.feverActive && fill > 0) {
-        this.feverPctText.setText(`${Math.floor(fill)}%`);
-        const pctColor = fill > 80 ? '#e74c3c' : fill > 50 ? '#f1c40f' : '#555555';
-        this.feverPctText.setColor(pctColor);
-      } else if (this.feverActive) {
-        const secs = Math.ceil(this.feverTimer / 1000);
-        this.feverPctText.setText(`${secs}s`);
-        this.feverPctText.setColor('#ffd700');
-      } else {
-        this.feverPctText.setText('');
-      }
-      this.feverLabelText.setColor(this.feverActive ? '#ffd700' : '#444444');
+      // Bright edge highlight
+      this.feverGfx.fillStyle(0xffffff, 0.15 * pulse);
+      this.feverGfx.fillRect(fb.x + 1, fillY, 2, fillH);
     }
 
-    // Render hint glow rings
-    if (this.hintGfx) {
-      this.hintGfx.clear();
-      if (this.hintActive && this.hintPair) {
-        const pulse = 0.5 + 0.5 * Math.sin(time * 0.004); // 0→1 oscillation
-        const alpha = 0.3 + pulse * 0.5;
-        const radius = (BUBBLE_SIZE / 2) + 2 + pulse * 4;
-        const hintColor = 0xf1c40f;
-
-        [this.hintPair.a, this.hintPair.b].forEach(cell => {
-          const b = this.grid[cell.r]?.[cell.c];
-          if (!b || !b.active) { this.clearHint(); return; }
-          const pos = this.gridToWorld(cell.r, cell.c);
-          // Outer glow
-          this.hintGfx.lineStyle(3, hintColor, alpha * 0.4);
-          this.hintGfx.strokeCircle(pos.x, pos.y, radius + 3);
-          // Inner ring
-          this.hintGfx.lineStyle(2, hintColor, alpha);
-          this.hintGfx.strokeCircle(pos.x, pos.y, radius);
-        });
-
-        // Connecting arrow line between the two hint bubbles
-        const posA = this.gridToWorld(this.hintPair.a.r, this.hintPair.a.c);
-        const posB = this.gridToWorld(this.hintPair.b.r, this.hintPair.b.c);
-        const midX = (posA.x + posB.x) / 2;
-        const midY = (posA.y + posB.y) / 2;
-        this.hintGfx.lineStyle(1.5, hintColor, alpha * 0.3);
-        this.hintGfx.lineBetween(posA.x, posA.y, midX, midY);
-      }
+    // Fever active: pulsing gold border around entire game area
+    if (this.feverActive) {
+      const { width, height } = this.scale;
+      const glow = 0.2 + 0.15 * Math.sin(time * 0.006);
+      this.feverGfx.lineStyle(3, 0xffd700, glow);
+      this.feverGfx.strokeRect(1, 1, width - 2, height - 2);
+      this.feverGfx.lineStyle(1.5, 0xffd700, glow * 0.5);
+      this.feverGfx.strokeRect(4, 4, width - 8, height - 8);
     }
+
+    // Update percentage / countdown text
+    if (!this.feverActive && fill > 0) {
+      this.feverPctText.setText(`${Math.floor(fill)}%`);
+      const pctColor = fill > 80 ? '#e74c3c' : fill > 50 ? '#f1c40f' : '#555555';
+      this.feverPctText.setColor(pctColor);
+    } else if (this.feverActive) {
+      const secs = Math.ceil(this.feverTimer / 1000);
+      this.feverPctText.setText(`${secs}s`);
+      this.feverPctText.setColor('#ffd700');
+    } else {
+      this.feverPctText.setText('');
+    }
+    this.feverLabelText.setColor(this.feverActive ? '#ffd700' : '#444444');
+  }
+
+  /**
+   * Draw animated hint rings around the suggested swap pair.
+   * Each bubble gets a double-ring glow (outer diffuse + inner sharp),
+   * connected by a faded midpoint line to suggest the swap direction.
+   * Auto-clears if either target bubble has been destroyed.
+   *
+   * @param {number} time — game clock in ms (drives ring oscillation)
+   */
+  renderHintGlow(time) {
+    if (!this.hintGfx) return;
+    this.hintGfx.clear();
+    if (!this.hintActive || !this.hintPair) return;
+
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.004); // 0→1 oscillation
+    const alpha = 0.3 + pulse * 0.5;
+    const radius = (BUBBLE_SIZE / 2) + 2 + pulse * 4;
+    const hintColor = 0xf1c40f;
+
+    [this.hintPair.a, this.hintPair.b].forEach(cell => {
+      const b = this.grid[cell.r]?.[cell.c];
+      if (!b || !b.active) { this.clearHint(); return; }
+      const pos = this.gridToWorld(cell.r, cell.c);
+      // Outer glow
+      this.hintGfx.lineStyle(3, hintColor, alpha * 0.4);
+      this.hintGfx.strokeCircle(pos.x, pos.y, radius + 3);
+      // Inner ring
+      this.hintGfx.lineStyle(2, hintColor, alpha);
+      this.hintGfx.strokeCircle(pos.x, pos.y, radius);
+    });
+
+    // Connecting arrow line between the two hint bubbles
+    const posA = this.gridToWorld(this.hintPair.a.r, this.hintPair.a.c);
+    const posB = this.gridToWorld(this.hintPair.b.r, this.hintPair.b.c);
+    const midX = (posA.x + posB.x) / 2;
+    const midY = (posA.y + posB.y) / 2;
+    this.hintGfx.lineStyle(1.5, hintColor, alpha * 0.3);
+    this.hintGfx.lineBetween(posA.x, posA.y, midX, midY);
   }
 
   // -----------------------------------------------------------

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.2] — 2026-04-04
+
+### Changed
+- **`GameScene.update()` decomposition** — Extracted the monolithic 105-line `update()` method into three focused render subsystems: `renderPowerUpOverlays(time)`, `renderFeverMeter(time)`, and `renderHintGlow(time)`. Each method owns a single visual concern with its own JSDoc, early-return guard, and reduced nesting depth. The fever bar color selection was also simplified from a mutable 5-branch if/else chain to a declarative ternary. Zero behavioral change — purely structural improvement for maintainability
+
 ## [0.13.1] — 2026-04-03
 
 ### Fixed

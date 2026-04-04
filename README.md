@@ -26,7 +26,7 @@ Bubble pop game with cultural sauce. Match bubbles, build streaks, unleash chara
 ```
 src/
   init.js        — SafeStorage (keyed checksums + per-install salt) + SW registration
-  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), processMatches() pipeline (see below), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), input sanitization layer (sanitizeMode, sanitizeGrade, sanitizeStorageKey), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
+  game.js        — Grid engine, 7 Phaser scenes (incl. StatsScene), processMatches() pipeline (see below), hint system, fever meter, TEXT_PRESETS + textStyle() typography system, achievement system (ACHIEVEMENTS + Achievements helper), input sanitization layer (sanitizeMode, sanitizeGrade, sanitizeStorageKey), per-frame render subsystems (renderPowerUpOverlays, renderFeverMeter, renderHintGlow), shared helpers (scanRuns, createButton, createToolbarBtn, safeDiv, safeScore, etc.)
   powerups.js    — PowerUpSystem (match analysis) + PowerUpRenderer (animated overlays)
   audio.js       — AudioEngine — fully synthesized sound via Web Audio API, _tone() helper, persistent mute toggle
   characters.js  — Procedurally drawn characters (Phaser Graphics API) + shared drawEye()/drawShadow() helpers
