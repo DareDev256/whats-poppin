@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.1] — 2026-04-04
+
+### Security
+- **Prototype pollution guard** — All `JSON.parse` calls on localStorage data now use a reviver function that strips `__proto__`, `constructor`, and `prototype` keys, preventing property injection from tampered storage
+- **SafeStorage checksum enforcement** — Values missing their companion `_c` checksum are now rejected (previously accepted as valid), closing a bypass where manually inserting a value without a checksum would skip integrity validation
+- **Service worker response hardening** — All cached responses now include `X-Content-Type-Options: nosniff` and HTML responses get the full CSP policy injected, preventing MIME-type confusion and cache poisoning attacks
+- **Service worker client claim** — Activate event now calls `self.clients.claim()` so security updates take effect immediately without requiring a page reload
+- **Dependency fix** — Resolved high-severity picomatch vulnerability (method injection + ReDoS via extglob quantifiers) through `npm audit fix`
+- **Cache version bump** — SW cache rotated to v7 to force re-cache with hardened headers
+
 ## [0.12.0] — 2026-04-03
 
 ### Added

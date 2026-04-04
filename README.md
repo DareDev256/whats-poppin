@@ -127,10 +127,11 @@ This game runs entirely client-side with no backend, but ships with defense-in-d
 - **CSP** — Zero `unsafe-inline` across all code paths (main page, SW responses, offline fallback). Scripts: `'self'` + jsDelivr CDN. Styles: `'self'` only. `object-src 'none'` blocks plugin execution. `upgrade-insecure-requests` forces HTTPS subresources
 - **Permissions-Policy** — Disables camera, mic, geolocation, payment, USB, sensors
 - **Referrer-Policy** — `no-referrer` prevents leakage to third parties
-- **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums
+- **SafeStorage** — All localStorage wrapped in try-catch with FNV-1a integrity checksums. Values missing their checksum are rejected (no bypass via orphaned writes)
+- **Prototype pollution guard** — All JSON deserialization uses a reviver that strips `__proto__`, `constructor`, and `prototype` keys before data reaches application logic
 - **CareerStats sanitization** — Schema-validated deserialization: key whitelist, type enforcement, non-negative clamping, upper-bound limits
 - **HallOfFame sanitization** — Per-entry validation: score clamped to 1e8, streak to 1000, mode whitelist, date regex
-- **SW hardening** — Service worker validates response origins, injects CSP on all synthesized responses, `clients.claim()` ensures security patches propagate immediately
+- **SW hardening** — Service worker validates response origins, injects CSP + `X-Content-Type-Options: nosniff` on all cached responses, `clients.claim()` ensures security patches propagate immediately
 
 ## Credits
 

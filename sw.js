@@ -1,5 +1,5 @@
 // Service Worker for offline play
-const CACHE_NAME = 'whatspoppin-v6';
+const CACHE_NAME = 'whatspoppin-v7';
 
 // Canonical CSP — applied to all synthesized responses
 const CSP_POLICY = [
@@ -50,7 +50,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+      if (cached) return hardenResponse(cached);
       return fetch(event.request).then((response) => {
         // Only cache same-origin or approved CDN responses
         if (response && response.status === 200) {
@@ -86,10 +86,25 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+/** Inject security headers into a cached or fetched Response. */
+function hardenResponse(response) {
+  const headers = new Headers(response.headers);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  // Apply CSP to document responses from our origin
+  if (response.headers.get('content-type')?.includes('text/html')) {
+    headers.set('Content-Security-Policy', CSP_POLICY);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
 });

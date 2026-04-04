@@ -38,7 +38,8 @@ const SafeStorage = {
       const raw = localStorage.getItem(key);
       if (raw === null) return fallback;
       const check = localStorage.getItem(key + '_c');
-      if (check && check !== this._checksum(raw)) return fallback; // tampered
+      // Reject if checksum is missing (orphaned write) or mismatched (tampered)
+      if (!check || check !== this._checksum(raw)) return fallback;
       return raw;
     } catch (_) { return fallback; }
   },

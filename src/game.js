@@ -2,6 +2,24 @@
 // Cultural sauce meets addictive gameplay
 
 // =============================================================
+// SECURITY — Safe JSON deserialization (prototype pollution guard)
+// =============================================================
+
+/**
+ * Parse JSON with prototype pollution protection.
+ * Strips __proto__, constructor, and prototype keys recursively
+ * to prevent property injection from tampered localStorage data.
+ * @param {string} raw - JSON string to parse
+ * @returns {*} Parsed value with dangerous keys removed
+ */
+function safeJSONParse(raw) {
+  return JSON.parse(raw, (key, value) => {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
+    return value;
+  });
+}
+
+// =============================================================
 // CONSTANTS
 // =============================================================
 const GRID_COLS = 8;
@@ -182,7 +200,7 @@ const CareerStats = {
     const raw = this._storage.get(this._key, null);
     if (!raw) return { ...this._defaults };
     try {
-      return this._sanitize(JSON.parse(raw));
+      return this._sanitize(safeJSONParse(raw));
     } catch (_) { return { ...this._defaults }; }
   },
 
@@ -233,7 +251,7 @@ const HallOfFame = {
     const raw = this._storage.get(this._key, null);
     if (!raw) return [];
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = safeJSONParse(raw);
       if (!Array.isArray(parsed)) return [];
       return parsed.map(e => this._sanitizeEntry(e)).filter(Boolean).slice(0, this._maxEntries);
     } catch (_) { return []; }
@@ -280,7 +298,7 @@ const Achievements = {
   load() {
     const raw = this._storage.get(this._key, '[]');
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = safeJSONParse(raw);
       if (!Array.isArray(parsed)) return [];
       return parsed.filter(id => typeof id === 'string');
     } catch (_) { return []; }
