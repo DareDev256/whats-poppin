@@ -1669,6 +1669,9 @@ class GameScene extends Phaser.Scene {
     this.pauseContainer = null;
     this.cascadeDepth = 0;
     this.bestChain = 0;
+    // Hype bar tween tracking — prevents accumulation during cascades
+    this._hypeDelayedCall = null;
+    this._hypeTweens = [];
     // Fever Mode state
     this.feverMeter = 0;        // 0–100
     this.feverActive = false;
@@ -3075,6 +3078,16 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Cancel previous hype tweens to prevent accumulation during cascades.
+    // Without this, rapid cascade calls stack tweens on the same objects,
+    // and stale 1500ms fade-out timers hide the current streak prematurely.
+    this._hypeTweens.forEach(t => { if (t && t.isPlaying) t.stop(); });
+    this._hypeTweens = [];
+    if (this._hypeDelayedCall) {
+      this._hypeDelayedCall.remove(false);
+      this._hypeDelayedCall = null;
+    }
+
     const { width } = this.scale;
 
     // Streak label
@@ -3083,9 +3096,9 @@ class GameScene extends Phaser.Scene {
     this.streakText.setColor(level.color);
     this.streakText.setAlpha(1);
     this.streakText.setScale(0.5);
-    this.tweens.add({
+    this._hypeTweens.push(this.tweens.add({
       targets: this.streakText, scale: 1, duration: 300, ease: 'Back.easeOut',
-    });
+    }));
 
     // Ad-lib
     const tier = Math.max(...Object.keys(ADLIBS).map(Number).filter(k => this.streak >= k));
@@ -3094,7 +3107,7 @@ class GameScene extends Phaser.Scene {
     this.adlibText.setText(adlib);
     this.adlibText.setColor(level.color);
     this.adlibText.setAlpha(0);
-    this.tweens.add({ targets: this.adlibText, alpha: 1, duration: 200, delay: 150 });
+    this._hypeTweens.push(this.tweens.add({ targets: this.adlibText, alpha: 1, duration: 200, delay: 150 }));
 
     // Character from characters.js
     this.characterGfx.clear();
@@ -3103,15 +3116,15 @@ class GameScene extends Phaser.Scene {
     if (window.characters && window.characters[level.char]) {
       const char = window.characters[level.char];
       char.draw(this.characterGfx, width - 60, 10, 0.8);
-      this.tweens.add({
+      this._hypeTweens.push(this.tweens.add({
         targets: this.characterGfx, alpha: 1, duration: 300, ease: 'Back.easeOut',
-      });
+      }));
 
       // Character name
       this.charNameText.setText(`${char.name}`);
       this.charNameText.setColor(level.color);
       this.charNameText.setAlpha(0);
-      this.tweens.add({ targets: this.charNameText, alpha: 1, duration: 200, delay: 200 });
+      this._hypeTweens.push(this.tweens.add({ targets: this.charNameText, alpha: 1, duration: 200, delay: 200 }));
     } else {
       // Fallback placeholder
       const charColor = Phaser.Display.Color.HexStringToColor(level.color).color;
@@ -3119,17 +3132,19 @@ class GameScene extends Phaser.Scene {
       this.characterGfx.fillStyle(charColor, 0.8);
       this.characterGfx.fillCircle(30, 25, 18);
       this.characterGfx.fillRoundedRect(15, 45, 30, 35, 6);
-      this.tweens.add({
+      this._hypeTweens.push(this.tweens.add({
         targets: this.characterGfx, alpha: 1, duration: 300, ease: 'Back.easeOut',
-      });
+      }));
     }
 
-    // Fade out
-    this.time.delayedCall(1500, () => {
-      this.tweens.add({
+    // Fade out — tracked so cascading calls cancel stale timers
+    this._hypeDelayedCall = this.time.delayedCall(1500, () => {
+      this._hypeDelayedCall = null;
+      const fadeTween = this.tweens.add({
         targets: [this.characterGfx, this.adlibText, this.charNameText],
         alpha: 0, duration: 400,
       });
+      this._hypeTweens.push(fadeTween);
     });
 
     if (this.streak >= 5) this.flashHypeBar(level.color);
@@ -3215,28 +3230,37 @@ class GameScene extends Phaser.Scene {
   }
 
   reshuffleGrid() {
-    const colors = [];
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (this.grid[r][c]) colors.push(this.grid[r][c].getData('colorIdx'));
-      }
-    }
+    // Retry shuffle until a valid board exists (one with possible moves).
+    // Without this, resolveInitialMatches could leave a deadlocked grid
+    // where the player has zero valid swaps — softlocking the game.
+    let shuffleAttempts = 0;
+    const MAX_SHUFFLE_ATTEMPTS = 10;
 
-    Phaser.Utils.Array.Shuffle(colors);
-
-    let idx = 0;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (this.grid[r][c]) {
-          const newColor = colors[idx++];
-          this.grid[r][c].setData('colorIdx', newColor);
-          this.grid[r][c].setTexture(`bubble_${newColor}`);
-          this.grid[r][c].setData('powerUp', POWERUP_TYPES.NONE);
+    do {
+      const colors = [];
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (this.grid[r][c]) colors.push(this.grid[r][c].getData('colorIdx'));
         }
       }
-    }
 
-    this.resolveInitialMatches();
+      Phaser.Utils.Array.Shuffle(colors);
+
+      let idx = 0;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (this.grid[r][c]) {
+            const newColor = colors[idx++];
+            this.grid[r][c].setData('colorIdx', newColor);
+            this.grid[r][c].setTexture(`bubble_${newColor}`);
+            this.grid[r][c].setData('powerUp', POWERUP_TYPES.NONE);
+          }
+        }
+      }
+
+      this.resolveInitialMatches();
+      shuffleAttempts++;
+    } while (!this.hasPossibleMoves() && shuffleAttempts < MAX_SHUFFLE_ATTEMPTS);
     window.audioEngine.playShuffle();
 
     const { width, height } = this.scale;

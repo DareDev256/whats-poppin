@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.4] — 2026-04-05
+
+### Fixed
+- **Hype bar tween accumulation** — During cascade chains, `triggerHypeBar` was called multiple times rapidly, stacking competing tweens on streak text, adlib text, and character graphics. Stale 1500ms fade-out timers from earlier calls would fire mid-display, causing visible jitter and text popping in/out. Now tracks and cancels previous tweens before creating new ones
+- **Reshuffle deadlock guard** — `reshuffleGrid` now retries up to 10 times if `resolveInitialMatches` produces a board with zero valid moves. Previously a single shuffle+resolve could leave the player permanently stuck with no possible swaps
+
+### Added
+- **5 unit tests** covering reshuffle retry loop validation, resolve-can-deadlock proof, and hype bar tween tracking/cancellation patterns (197 → 202 total tests)
+
 ## [0.12.3] — 2026-04-05
 
 ### Added

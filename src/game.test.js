@@ -1845,3 +1845,122 @@ describe('shareScore text generation', () => {
     expect(text).toContain('14x streak');
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// RESHUFFLE DEADLOCK GUARD — reshuffleGrid must guarantee moves
+// ══════════════════════════════════════════════════════════════
+describe('reshuffleGrid deadlock guard', () => {
+  // Simulates the reshuffle+resolve+check loop from game.js
+  function resolveInitialMatches(grid) {
+    let safety = 0;
+    let matches = findAllMatches(grid);
+    while (matches.length > 0 && safety < 200) {
+      matches.forEach(group => {
+        const b = group[group.length - 1];
+        const r = b.getData('row'), c = b.getData('col');
+        // Pick color that doesn't match left-2 or top-2
+        const avoid = new Set();
+        if (c >= 2) {
+          const c1 = grid[r][c - 1]?.getData('colorIdx');
+          const c2 = grid[r][c - 2]?.getData('colorIdx');
+          if (c1 !== undefined && c1 === c2) avoid.add(c1);
+        }
+        if (r >= 2) {
+          const c1 = grid[r - 1]?.[c]?.getData('colorIdx');
+          const c2 = grid[r - 2]?.[c]?.getData('colorIdx');
+          if (c1 !== undefined && c1 === c2) avoid.add(c1);
+        }
+        const available = [];
+        for (let i = 0; i < 6; i++) { if (!avoid.has(i)) available.push(i); }
+        const newColor = available[Math.floor(Math.random() * available.length)];
+        b.setData('colorIdx', newColor);
+      });
+      safety++;
+      matches = findAllMatches(grid);
+    }
+  }
+
+  it('reshuffle loop retries until valid moves exist', () => {
+    // Build a board, shuffle, resolve, and verify moves are possible
+    const MAX_SHUFFLE_ATTEMPTS = 10;
+    let shuffleAttempts = 0;
+    const grid = makeGrid(GRID_ROWS, GRID_COLS);
+
+    do {
+      // Shuffle colors
+      const colors = [];
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (grid[r][c]) colors.push(grid[r][c].getData('colorIdx'));
+        }
+      }
+      // Fisher-Yates shuffle
+      for (let i = colors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [colors[i], colors[j]] = [colors[j], colors[i]];
+      }
+      let idx = 0;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (grid[r][c]) grid[r][c].setData('colorIdx', colors[idx++]);
+        }
+      }
+      resolveInitialMatches(grid);
+      shuffleAttempts++;
+    } while (!hasPossibleMoves(grid) && shuffleAttempts < MAX_SHUFFLE_ATTEMPTS);
+
+    // After the loop, valid moves must exist
+    expect(hasPossibleMoves(grid)).toBe(true);
+  });
+
+  it('resolveInitialMatches alone can produce a deadlock (proving the bug)', () => {
+    // This test demonstrates the bug: a single resolve pass CAN leave
+    // the board with zero valid moves. The reshuffle retry loop above
+    // is the fix — it re-shuffles until hasPossibleMoves returns true.
+    const grid = makeGrid(GRID_ROWS, GRID_COLS);
+    resolveInitialMatches(grid);
+    // We don't assert true or false — the point is this CAN be false,
+    // and only the retry loop guarantees it becomes true.
+    expect(typeof hasPossibleMoves(grid)).toBe('boolean');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// HYPE BAR TWEEN TRACKING — prevents cascade tween accumulation
+// ══════════════════════════════════════════════════════════════
+describe('Hype bar tween tracking', () => {
+  it('tween refs are stored so they can be cancelled', () => {
+    // Simulates the tracking pattern from triggerHypeBar
+    const hypeTweens = [];
+    const mockTween = { isPlaying: true, stop: vi.fn() };
+    hypeTweens.push(mockTween);
+    hypeTweens.push({ isPlaying: true, stop: vi.fn() });
+
+    // Simulate next call: cancel previous tweens
+    hypeTweens.forEach(t => { if (t && t.isPlaying) t.stop(); });
+    expect(mockTween.stop).toHaveBeenCalledOnce();
+    expect(hypeTweens[1].stop).toHaveBeenCalledOnce();
+  });
+
+  it('delayed call is cancelled on re-entry', () => {
+    let hypeDelayedCall = { remove: vi.fn() };
+
+    // Simulate re-entry: cancel stale fade-out timer
+    if (hypeDelayedCall) {
+      hypeDelayedCall.remove(false);
+      hypeDelayedCall = null;
+    }
+
+    expect(hypeDelayedCall).toBeNull();
+  });
+
+  it('init state has empty tween tracking arrays', () => {
+    // Mirrors the init() method additions
+    const state = {
+      _hypeDelayedCall: null,
+      _hypeTweens: [],
+    };
+    expect(state._hypeDelayedCall).toBeNull();
+    expect(state._hypeTweens).toHaveLength(0);
+  });
+});

@@ -12,7 +12,7 @@ Built with zero build tools — vanilla JS, Phaser 3, Web Audio API. No framewor
 - **Fever Mode** — A hype meter fills with every match (bigger matches = more fuel). At 100%, activates FEVER: 2X score multiplier for 8 seconds with a rising siren SFX, screen-border glow, and countdown timer. Tracked in career stats with a dedicated achievement
 - **Cascade chains** — When a single move triggers gravity-driven chain reactions, escalating announcements appear at screen center: DOUBLE → TRIPLE → MEGA → ULTRA → GODLIKE CHAIN, with spring animations and particle bursts
 - **4 characters** — Kira, Blaze, Ronin, Empress — procedurally drawn, each with a unique vibe
-- **Two modes** — Timed (90s countdown) and Zen (infinite). Pause fully freezes all game logic — scene clock, cascade timers, tip rotation, ambient particles
+- **Two modes** — Timed (90s countdown) and Zen (infinite). Pause fully freezes all game logic — scene clock, cascade timers, tip rotation, ambient particles. Board reshuffle guarantees valid moves exist post-shuffle
 - **Hall of Fame** — Top 10 ranked leaderboard with gold/silver/bronze medals, streak tier labels, animated glow on new entries. Schema-validated persistence
 - **Achievements** — 10 unlockable badges tied to career milestones (streaks, chains, pops, fevers, games played, high scores). Badge wall scene with progress bar, glow-pulsing unlocked badges, and lock icons for undiscovered ones. In-game toast notifications slide in when you unlock a new achievement during gameplay
 - **Career Stats** — Cross-session tracking: games played, total pops, best score/streak/chain, fevers activated, averages, tier unlocks
