@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] — 2026-04-05
+
+### Changed
+- **Extract `createMuteToggle()` shared utility** — The duplicated mute-icon-swap closures (`drawMuteBtn` in TitleScene, `drawMuteIcon` in GameScene) are now a single factory function with configurable color, size, and depth. Both scenes delegate to it, eliminating ~20 lines of repeated destroy-recreate-toggle logic and ensuring mute button behavior stays consistent across all scenes
+- **TipsScene back button uses `createButton` factory** — Replaced 12 lines of hand-rolled button code (manual graphics bg, text, and hit zone) with the existing `createButton()` factory that every other scene already uses. Gains hover feedback for free and stays visually consistent with the rest of the UI
+
 ## [0.13.3] — 2026-04-04
 
 ### Security

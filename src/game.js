@@ -265,6 +265,37 @@ function createToolbarBtn(scene, opts) {
 }
 
 /**
+ * Mute toggle factory — shared icon-swap + toggle logic for any scene.
+ * Eliminates the duplicated drawMuteBtn / drawMuteIcon closures that
+ * existed independently in TitleScene and GameScene.
+ *
+ * @param {Phaser.Scene} scene — target scene
+ * @param {number} x — icon center X
+ * @param {number} y — icon center Y
+ * @param {object} [opts]
+ * @param {number} [opts.size=18]       — icon size
+ * @param {number} [opts.onColor=0x888888]  — color when unmuted
+ * @param {number} [opts.offColor=0x666666] — color when muted
+ * @param {number|null} [opts.depth=null]   — explicit depth (null = default)
+ * @returns {{ update: (muted: boolean) => void }}
+ */
+function createMuteToggle(scene, x, y, opts = {}) {
+  const { size = 18, onColor = 0x888888, offColor = 0x666666, depth = null } = opts;
+  let iconGfx = null;
+
+  const update = (muted) => {
+    if (iconGfx) iconGfx.destroy();
+    iconGfx = muted
+      ? Icons.soundOff(scene, x, y, size, offColor)
+      : Icons.sound(scene, x, y, size, onColor);
+    if (depth !== null) iconGfx.setDepth(depth);
+  };
+
+  update(window.audioEngine.muted);
+  return { update };
+}
+
+/**
  * Unified button factory — replaces 3 duplicated button methods.
  * @param {Phaser.Scene} scene
  * @param {object} opts - { x, y, width, height, text, subtext, color, iconFn, callback, container, radius }
@@ -510,19 +541,12 @@ class TitleScene extends Phaser.Scene {
     }
 
     // ---- MUTE TOGGLE (bottom-right) ----
-    this.drawMuteBtn = (muted) => {
-      if (this.muteIconGfx) this.muteIconGfx.destroy();
-      this.muteIconGfx = muted
-        ? Icons.soundOff(this, width - 30, height * 0.93, 18, 0x666666)
-        : Icons.sound(this, width - 30, height * 0.93, 18, 0x888888);
-    };
-    this.drawMuteBtn(window.audioEngine.muted);
+    const mute = createMuteToggle(this, width - 30, height * 0.93);
     const muteHit = this.add.rectangle(width - 30, height * 0.93, 36, 36).setInteractive().setAlpha(0.001);
     muteHit.on('pointerdown', () => {
       window.audioEngine.init();
       window.audioEngine.resume();
-      const muted = window.audioEngine.toggleMute();
-      this.drawMuteBtn(muted);
+      mute.update(window.audioEngine.toggleMute());
     });
 
     // Credits
@@ -533,7 +557,7 @@ class TitleScene extends Phaser.Scene {
       window.audioEngine.init();
       window.audioEngine.resume();
       window.audioEngine.restoreMuteState();
-      this.drawMuteBtn(window.audioEngine.muted);
+      mute.update(window.audioEngine.muted);
     });
   }
 
@@ -1079,20 +1103,12 @@ class TipsScene extends Phaser.Scene {
       yPos += cardH + 8;
     });
 
-    // Back button
-    const backY = height - 40;
-    const backBg = this.add.graphics();
-    backBg.fillStyle(0x1a1a2e, 1);
-    backBg.fillRoundedRect(width / 2 - 80, backY - 18, 160, 36, 8);
-    backBg.lineStyle(2, 0x3a3a5e, 0.8);
-    backBg.strokeRoundedRect(width / 2 - 80, backY - 18, 160, 36, 8);
-
-    Icons.back(this, width / 2 - 35, backY, 14, 0xffffff);
-    this.add.text(width / 2 + 5, backY, 'BACK',
-      textStyle('heading', { fontSize: '16px', stroke: '', strokeThickness: 0 })).setOrigin(0.5);
-
-    const backHit = this.add.rectangle(width / 2, backY, 160, 36).setInteractive().setAlpha(0.001);
-    backHit.on('pointerdown', () => this.scene.start('TitleScene'));
+    // Back button — uses shared createButton factory
+    createButton(this, { x: width / 2, y: height - 40, width: 160, height: 36, radius: 8,
+      text: 'BACK', color: '#aaaaaa',
+      iconFn: (s, bx, by) => Icons.back(s, bx, by, 14, 0xffffff),
+      callback: () => this.scene.start('TitleScene'),
+    });
   }
 }
 
@@ -1457,24 +1473,13 @@ class GameScene extends Phaser.Scene {
     this.hintCountText = this.add.text(hintBtnX + 12, tbY + 10, this.maxHints === Infinity ? '∞' : `${this.maxHints}`,
       textStyle('badge', { fontSize: '10px', color: '#f1c40f' })).setOrigin(0.5).setDepth(42);
 
-    // Mute
+    // Mute — uses shared createMuteToggle for icon swap
+    const gameMute = createMuteToggle(this, muteBtnX, tbY, { onColor: 0xaaaaaa, depth: 41 });
     const muteBtn = createToolbarBtn(this, {
       x: muteBtnX, y: tbY, size: tbSize,
-      callback: () => {
-        const muted = window.audioEngine.toggleMute();
-        this.drawMuteIcon(muted);
-      },
+      callback: () => gameMute.update(window.audioEngine.toggleMute()),
     });
     this.muteBtnBg = muteBtn.bg;
-
-    this.drawMuteIcon = (muted) => {
-      if (this.muteIconGfx) this.muteIconGfx.destroy();
-      this.muteIconGfx = muted
-        ? Icons.soundOff(this, muteBtnX, tbY, 18, 0x666666)
-        : Icons.sound(this, muteBtnX, tbY, 18, 0xaaaaaa);
-      this.muteIconGfx.setDepth(41);
-    };
-    this.drawMuteIcon(window.audioEngine.muted);
 
     // Hint overlay graphics (drawn in update loop)
     this.hintGfx = this.add.graphics().setDepth(4);
