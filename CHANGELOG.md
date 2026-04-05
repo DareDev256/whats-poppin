@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.12.3] — 2026-04-05
+
+### Added
+- **Service worker test suite** — 27 new unit tests covering `hardenResponse` security header injection, CSP policy integrity (all 11 directives validated), asset manifest correctness (no duplicates, pinned CDN version), offline fallback response structure (503 for non-documents, restrictive CSP for HTML), and cache version pruning logic (170 → 197 total tests)
+
 ## [0.12.2] — 2026-04-04
 
 ### Changed

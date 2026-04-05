@@ -41,7 +41,7 @@ npx serve . -l 3333
 npm test
 ```
 
-170 unit tests (Vitest), all passing. Coverage:
+197 unit tests (Vitest), all passing. Coverage:
 
 | Module | What's tested |
 |--------|--------------|
@@ -58,6 +58,7 @@ npm test
 | **toggleMuteAndSave** | Mute/unmute persistence, round-trip state |
 | **Achievements** | Load/check/count, multi-unlock, idempotency, corrupted JSON, type injection, chain_gang threshold |
 | **Chain Levels** | Cascade tier resolution, null below threshold, escalating sizes, unique colors |
+| **Service Worker** | hardenResponse header injection, CSP policy integrity, asset manifest validation, offline fallback structure, cache version pruning |
 
 ## Architecture
 
